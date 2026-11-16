@@ -333,7 +333,7 @@ function hoodPatch(x0, x1, zc, w, mat, lift = 0.006){
 
 // avant + bas de cabine
 const cab = extrudeProfile([[1.665,0.48],[1.665,0.60],[1.655,0.72],[1.645,0.80,HP0[0],HP0[1]],[HC[0],HC[1],HP1[0],HP1[1]],[-0.26,1.02],[-0.26,0.48]], CAB_W, [AX_F], M.paint, BEV,
-  v => { if (v[0] > 0.62) v[1] -= hoodDrop(v[0], v[2])*sstep(v[1], 0.70, 0.82); });
+  v => { if (v[0] > 0.62) v[1] -= hoodDrop(v[0], v[2])*sstep(v[1], 0.70, 0.82); v[2] *= 1 - 0.045*sstep(v[0], 1.40, 1.70); }); // nez légèrement resserré
 // caisse arrière, puis toit bombé surélevé posé dessus
 const boxBody = extrudeProfile([[-0.27,0.49],[-0.27,1.50],[-1.73,1.50],[-1.73,0.49]], BOX_W, [AX_R], M.paint, BEVB, v => roundRear(v, -1.73, 0.75, 0.12));
 const roofCap = extrudeProfile([[-0.39,1.50],[-0.39,1.70,-0.69,1.70],[-1.64,1.70],[-1.69,1.70,-1.69,1.62],[-1.69,1.50]], BOX_W-0.04, [], M.paint, 0.05,
@@ -446,33 +446,36 @@ function makeGrille(){
   x.fillStyle = '#17181b'; for (let i=40;i<512;i+=60) x.fillRect(i,0,5,128);
   return c;
 }
-const GR_Y = 0.685;
-{
-  box(0.02, 0.22, 1.23, M.black, FRONT+0.002, GR_Y, 0);
+const GR_Y = 0.69, HL_Z = 0.41;
+{ // cotes relevées sur la photo de face : calandre 1,06 × 0,21 m, phares de 17 cm à 82 cm d'entraxe
+  rplane(1.03, 0.185, 0.05, M.black, [FRONT+0.008, GR_Y, 0], [0,0,-1], [0,1,0]);
   const gr = new THREE.CanvasTexture(makeGrille()); gr.colorSpace = THREE.SRGBColorSpace;
-  plane(0.80, 0.19, new THREE.MeshStandardMaterial({map:gr, roughness:0.6}), [FRONT+0.014, GR_Y, 0], [0,0,-1], [0,1,0]);
+  plane(0.62, 0.165, new THREE.MeshStandardMaterial({map:gr, roughness:0.6}), [FRONT+0.014, GR_Y, 0], [0,0,-1], [0,1,0]);
   // entourage de calandre : liseré fluo
-  const S = rrShape(1.27, 0.25, 0.07); S.holes.push(rrShape(1.24, 0.22, 0.055, new THREE.Path()));
+  const S = rrShape(1.06, 0.215, 0.065); S.holes.push(rrShape(1.03, 0.185, 0.05, new THREE.Path()));
   const fr = new THREE.Mesh(new THREE.ExtrudeGeometry(S, {depth:0.03, bevelEnabled:false, curveSegments:8}), M.accent);
-  fr.rotation.y = Math.PI/2; fr.position.set(FRONT-0.006, GR_Y, 0); add(fr);
+  fr.rotation.y = Math.PI/2; fr.position.set(FRONT-0.012, GR_Y, 0); add(fr);
   [1,-1].forEach(s => {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.083, 0.011, 10, 32), M.chrome);
-    ring.rotation.y = Math.PI/2; ring.position.set(FRONT+0.02, GR_Y, s*0.50); add(ring);
-    const lens = new THREE.Mesh(new THREE.SphereGeometry(0.08, 24, 14), M.lens);
-    lens.scale.x = 0.28; lens.position.set(FRONT+0.016, GR_Y, s*0.50); add(lens);
-    rbox(0.03, 0.04, 0.09, 0.012, M.orange, FRONT+0.002, 0.52, s*0.56); rbox(0.03, 0.04, 0.05, 0.012, M.lens, FRONT+0.002, 0.52, s*0.49);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.084, 0.009, 10, 36), M.chrome);
+    ring.rotation.y = Math.PI/2; ring.position.set(FRONT+0.02, GR_Y, s*HL_Z); add(ring);
+    const lens = new THREE.Mesh(new THREE.SphereGeometry(0.082, 24, 14), M.lens);
+    lens.scale.x = 0.3; lens.position.set(FRONT+0.016, GR_Y, s*HL_Z); add(lens);
+    // clignotant orange à l'extérieur, veilleuse blanche à l'intérieur, sous le phare
+    rbox(0.03, 0.055, 0.085, 0.012, M.orange, FRONT+0.002, 0.525, s*0.535); rbox(0.03, 0.055, 0.04, 0.012, M.lens, FRONT+0.002, 0.525, s*0.47);
   });
 }
 
 /* ---------- Pare-chocs avant et liserés fluo ---------- */
-{ // pare-chocs avant tubulaire sur pattes en V
-  const bx = FRONT+0.10, by = 0.42;
-  tube([bx, by, -0.76], [bx, by, 0.76], 0.03, car, M.accent);
+{ // pare-chocs avant tubulaire, extrémités cintrées vers l'arrière
+  const bx = FRONT+0.085, by = 0.42, R = 0.034, hz = 0.60;
+  tube([bx, by, -hz], [bx, by, hz], R, car, M.accent);
   [1,-1].forEach(s => {
-    const sp = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 10), M.accent); sp.position.set(bx, by, s*0.76); add(sp);
-    tube([bx, by, s*0.37], [FRONT-0.02, 0.47, s*0.30], 0.014, car, M.accent);
-    tube([bx, by, s*0.23], [FRONT-0.02, 0.47, s*0.30], 0.014, car, M.accent);
+    const sp = new THREE.Mesh(new THREE.SphereGeometry(R, 12, 10), M.accent); sp.position.set(bx, by, s*hz); add(sp);
+    tube([bx, by, s*hz], [bx-0.10, by, s*(hz+0.09)], R, car, M.accent);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(R, 12, 10), M.accent); cap.position.set(bx-0.10, by, s*(hz+0.09)); add(cap);
+    tube([bx, by, s*0.40], [FRONT-0.02, 0.46, s*0.40], 0.013, car, M.accent);
   });
+  box(0.03, 0.07, 1.0, M.under, FRONT-0.02, 0.455, 0); // jupe noire sous le pare-chocs
 }
 [1,-1].forEach(s => {
   const zc = s*(CAB_SIDE+0.004), zb = s*(BOX_SIDE+0.004);
@@ -510,7 +513,7 @@ function makePlate(t){
 }
 const plateTex = new THREE.CanvasTexture(makePlate('TDLV · 435')); plateTex.colorSpace = THREE.SRGBColorSpace;
 const plateMat = new THREE.MeshStandardMaterial({map:plateTex, roughness:0.4});
-plane(0.50, 0.105, plateMat, [FRONT+0.133, 0.42, 0], [0,0,-1], [0,1,0]);
+plane(0.52, 0.11, plateMat, [FRONT+0.007, 0.52, 0], [0,0,-1], [0,1,0]); // plaque sur la face avant, entre calandre et pare-chocs
 { // plaque arrière carrée, sur deux lignes
   const c = document.createElement('canvas'); c.width = 300; c.height = 220; const x = c.getContext('2d');
   x.fillStyle = '#f7f7f2'; x.fillRect(0,0,300,220); x.strokeStyle = '#111'; x.lineWidth = 6; x.strokeRect(3,3,294,214);
@@ -775,7 +778,7 @@ scene.add(sun); scene.add(sun.target);
 // phares (décor de nuit)
 const headlights = [1,-1].map(s => {
   const l = new THREE.SpotLight(0xfff1c8, 0, 28, 0.5, 0.6, 1.2);
-  l.position.set(FRONT+0.05, 0.70, s*0.51); l.target.position.set(FRONT+6, 0.1, s*0.9);
+  l.position.set(FRONT+0.05, 0.69, s*0.41); l.target.position.set(FRONT+6, 0.1, s*0.9);
   car.add(l); car.add(l.target); return l;
 });
 
