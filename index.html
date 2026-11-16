@@ -62,6 +62,14 @@
   .card.on{border-color:var(--gold);background:rgba(228,179,80,.08)}
   .card b{display:block;font-size:13.5px}
   .card span{font-size:12px;color:var(--muted)}
+  .rm-c{fill:#3d4a7a;font:700 11px Archivo,sans-serif;letter-spacing:.14em;text-anchor:middle}
+  .rm-s{fill:#5aa3c4;font:600 10px Archivo,sans-serif}
+  .rm-stop{cursor:pointer}
+  .rm-stop circle{fill:#0b1230;stroke:#e4b350;stroke-width:2.5}
+  .rm-stop text{fill:#f4efe3;font:600 12px Archivo,sans-serif}
+  .rm-stop.on circle{fill:#c9ef1f;stroke:#c9ef1f}
+  .rm-stop.on text{fill:#c9ef1f}
+  .tabs button{padding-left:2px;padding-right:2px}
   .note{font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:12px}
   .note a{color:var(--gold2)}
   .modal{position:fixed;inset:0;background:rgba(5,9,24,.78);z-index:20;display:none;align-items:center;justify-content:center;padding:20px}
@@ -109,6 +117,10 @@
   <button class="chip" data-view="rear34">3/4 arrière</button>
   <button class="chip" data-view="top">Vue drone</button>
   <button class="chip" id="rotateBtn">Rotation auto</button>
+  <button class="chip" data-open="doors">Portes</button>
+  <button class="chip" data-open="hood">Capot</button>
+  <button class="chip" data-open="rear">Coffre</button>
+  <button class="chip" id="driveBtn">En route</button>
   <button class="chip" id="lightsBtn">Phares</button>
   <button class="chip" id="warnBtn">Warnings</button>
   <button class="chip on" id="zonesBtn">Afficher les emplacements</button>
@@ -120,11 +132,12 @@
     <button class="on" data-tab="sponsors">Sponsors</button>
     <button data-tab="livree">Livrée</button>
     <button data-tab="decor">Décor</button>
+    <button data-tab="trajet">Trajet</button>
   </div>
 
   <section class="tab on" id="tab-sponsors">
     <h2>Votre marque sur la 4L</h2>
-    <p class="lead">Choisis un emplacement, importe ton logo et vois tout de suite le rendu, dans le désert comme au départ de Paris.</p>
+    <p class="lead">Choisis un emplacement, importe ton logo et vois tout de suite le rendu, du départ de Paris jusqu'aux dunes.</p>
     <div id="zoneList"></div>
     <div class="detail" id="detail"></div>
     <div class="pack" id="pack"></div>
@@ -156,6 +169,14 @@
     <p class="lead">Mets la 4L en situation.</p>
     <div id="decorList"></div>
   </section>
+
+  <section class="tab" id="tab-trajet">
+    <h2>Paris → Marrakech</h2>
+    <p class="lead">Les grandes étapes du raid. Clique sur une étape pour y emmener la 4L.</p>
+    <div id="routeMap"></div>
+    <div id="stageList"></div>
+    <p class="note">Tracé indicatif : l'itinéraire officiel est fixé par l'organisation.</p>
+  </section>
 </aside>
 
 <div class="modal" id="shotModal">
@@ -163,6 +184,21 @@
     <img id="shotImg" alt="Capture de la 4L">
     <p>Clic droit (ou appui long sur mobile) puis « Enregistrer l'image » pour la garder.</p>
     <button class="btn gold" id="shotClose">Fermer</button>
+  </div>
+</div>
+<div class="modal" id="askModal">
+  <div class="box" style="width:520px">
+    <h2 style="margin-top:0">Je suis intéressé</h2>
+    <p style="margin-top:0">Complète si tu veux, puis envoie ce message à l'équipage. On te répond vite.</p>
+    <div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" id="askOrg" placeholder="Entreprise ou nom"><input type="text" id="askMail" placeholder="E-mail ou téléphone"></div>
+    <textarea id="askText" readonly rows="9" style="width:100%;background:#0b1230;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px;font:500 13px/1.45 Archivo,sans-serif;resize:vertical"></textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn gold" id="askCopy">Copier le message</button>
+      <a class="btn" id="askMailto" style="text-decoration:none;display:none">Envoyer par e-mail</a>
+      <a class="btn" href="https://ig.me/m/tdlv4ltrophy2k27" target="_blank" rel="noopener" style="text-decoration:none">Écrire sur Instagram</a>
+      <button class="btn ghost" id="askClose">Fermer</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:0">Instagram : @tdlv4ltrophy2k27. Colle le message copié dans la conversation.</p>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -576,9 +612,10 @@ function buildWheel(){
     nut.rotation.x = Math.PI/2; nut.position.set(Math.cos(a)*0.058, Math.sin(a)*0.058, 0.036); g.add(nut); }
   return g;
 }
-const TRACK = 0.62;
+const TRACK = 0.62, wheels = [];
 [AX_F, AX_R].forEach(x => [1,-1].forEach(s => {
-  const w = buildWheel(); w.position.set(x, WHEEL_Y, s*TRACK); if (s < 0) w.rotation.y = Math.PI; car.add(w);
+  const w = new THREE.Group(), spin = buildWheel(); w.add(spin);
+  w.position.set(x, WHEEL_Y, s*TRACK); if (s < 0) w.rotation.y = Math.PI; car.add(w); wheels.push({spin, s});
 }));
 
 /* ---------- Galerie de toit ---------- */
@@ -707,6 +744,98 @@ const trophyImg = new Image();
 trophyImg.onload = () => ZONES.filter(z => z.reserved).forEach(z => { z.content = {img:trophyImg}; drawZone(z); });
 trophyImg.src = 'logo-4l-trophy.png';
 
+/* ---------- Ouvrants : portières, capot, porte arrière ----------
+   La carrosserie est d'un bloc : chaque ouvrant est une peau articulée qui emporte ses accessoires et ses stickers,
+   et découvre un fond sombre (habitacle, moteur, chargement). */
+const paintSkin = M.paint.clone(); paintSkin.color = M.paint.color; paintSkin.side = THREE.DoubleSide;
+paintSkin.polygonOffset = true; paintSkin.polygonOffsetFactor = 1; paintSkin.polygonOffsetUnits = 1;
+const darkMat = new THREE.MeshBasicMaterial({color:0x07080a, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1});
+const open = {dr:0, dl:0, hood:0, rear:0}, openTarget = {dr:0, dl:0, hood:0, rear:0};
+const openParts = {};
+{
+  car.updateMatrixWorld(true);
+  const bb = new THREE.Box3();
+  const grab = (G, test) => [...car.children].forEach(c => {
+    if (c === G || c.isGroup || c.isLight || !c.geometry) return;
+    bb.setFromObject(c); if (test(bb.min, bb.max, c)) G.attach(c);
+  });
+  const pivot = (x, y, z) => { const G = new THREE.Group(); G.position.set(x, y, z); car.add(G); return G; };
+
+  // portières
+  [[1,'dr'],[-1,'dl']].forEach(([s, key]) => {
+    const G = pivot(0.80, 0, s*CAB_SIDE);
+    grab(G, (a, b, c) => a.x > -0.33 && b.x < 0.80 && a.y > 0.52 && b.y < 1.49 && Math.min(s*a.z, s*b.z) > 0.59
+      && !(c.geometry.type === 'BoxGeometry' && c.material === M.paint)); // le montant de pare-brise reste
+    const S = new THREE.Shape([[-0.275,0.53],[0.905,0.53],[0.645,1.035],[-0.275,1.035]].map(p => new THREE.Vector2(...p)));
+    const skin = new THREE.Mesh(new THREE.ShapeGeometry(S), paintSkin); skin.position.z = s*(CAB_SIDE+0.001); skin.castShadow = true; car.add(skin); G.attach(skin);
+    const hole = new THREE.Mesh(new THREE.ShapeGeometry(S), darkMat); hole.position.z = s*(CAB_SIDE+0.0012); car.add(hole);
+    openParts[key] = {G, reveal:[hole], apply:k => G.rotation.y = s*k*1.15};
+  });
+
+  // capot (articulé à l'avant, comme sur la vraie)
+  {
+    const hy = hoodSurf(1.50, 0);
+    const G = pivot(1.50, hy, 0);
+    grab(G, (a, b) => a.x > 0.66 && b.x < 1.52 && a.y > 0.80 && b.y < 1.12 && a.z > -0.66 && b.z < 0.66);
+    const skin = hoodPatch(0.665, 1.50, 0, 1.26, paintSkin, 0.004); skin.castShadow = true; G.attach(skin);
+    const hole = hoodPatch(0.70, 1.47, 0, 1.16, darkMat, 0.003);
+    // moteur simplifié, en relief sur le fond
+    const eng = new THREE.Group(); car.add(eng);
+    const iron = new THREE.MeshStandardMaterial({color:0x2c2e33, roughness:0.6, metalness:0.5}), rubber = new THREE.MeshStandardMaterial({color:0x0e0e10, roughness:0.9});
+    const on = (m, x, z, h) => { m.position.set(x, hoodSurf(x, z) + h, z); eng.add(m); return m; };
+    on(new THREE.Mesh(new RoundedBoxGeometry(0.46, 0.10, 0.20, 2, 0.02), iron), 1.02, 0.02, 0.05);                       // bloc et culasse
+    on(new THREE.Mesh(new RoundedBoxGeometry(0.40, 0.035, 0.12, 2, 0.012), new THREE.MeshStandardMaterial({color:0x1b1c20, roughness:0.4, metalness:0.6})), 1.02, 0.02, 0.115); // cache-culbuteurs
+    const filt = on(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.07, 28), rubber), 0.88, -0.24, 0.045);
+    const alt = on(new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.10, 20), M.alu), 1.20, 0.22, 0.06); alt.rotation.z = Math.PI/2;
+    on(new THREE.Mesh(new RoundedBoxGeometry(0.24, 0.13, 0.17, 2, 0.015), rubber), 1.26, -0.30, 0.065);                   // batterie
+    on(new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.012, 0.13), new THREE.MeshStandardMaterial({color:0xe2b21f, roughness:0.5})), 1.26, -0.30, 0.136);
+    on(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.13, 0.50), M.alu), 1.42, 0.0, 0.07);                                   // radiateur
+    const white = new THREE.MeshStandardMaterial({color:0xe8e8e2, roughness:0.5});
+    on(new THREE.Mesh(new RoundedBoxGeometry(0.16, 0.12, 0.14, 2, 0.03), white), 0.82, 0.40, 0.06);                        // lave-glace
+    on(new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), white), 0.98, 0.42, 0.06);                                  // vase d'expansion
+    [[0.92,-0.10,1.18,0.16],[0.86,0.30,1.38,0.10],[1.10,-0.20,1.40,-0.18]].forEach(([x0,z0,x1,z1]) =>
+      tube([x0, hoodSurf(x0,z0)+0.08, z0], [x1, hoodSurf(x1,z1)+0.08, z1], 0.012, eng, rubber));                             // durites
+    openParts.hood = {G, reveal:[hole, eng], apply:k => G.rotation.z = -k*0.95};
+  }
+
+  // porte arrière et chargement solidaire
+  {
+    const X = BOX_REAR, G = pivot(X, 0, -0.64);
+    grab(G, (a, b) => b.x < X+0.02 && a.x > X-0.12 && a.y > 0.51 && b.y < 1.56 && a.z > -0.66 && b.z < 0.66);
+    const skin = rplane(1.28, 1.0, 0.05, paintSkin, [X-0.001, 1.03, 0], [0,0,1], [0,1,0]); skin.castShadow = true; G.attach(skin);
+    const hole = rplane(1.22, 0.94, 0.04, darkMat, [X-0.0015, 1.03, 0], [0,0,1], [0,1,0]);
+    const cargo = new THREE.Group(); car.add(cargo);
+    const kraft = new THREE.MeshStandardMaterial({color:0xb98a55, roughness:0.85}), tape = new THREE.MeshStandardMaterial({color:0x8e6a3f, roughness:0.8});
+    const label = txt => { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d');
+      x.fillStyle = '#f4efe3'; x.fillRect(0,0,256,128); x.fillStyle = '#121d45'; x.font = '700 30px Archivo, Arial'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      txt.split('\n').forEach((l, i, a) => x.fillText(l, 128, 64 + (i-(a.length-1)/2)*36));
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return new THREE.MeshStandardMaterial({map:t, roughness:0.7}); };
+    const carton = (z, y, w, h, txt) => { rbox(0.16, h, w, 0.012, kraft, X-0.05, y+h/2, z, cargo); box(0.162, h+0.002, 0.045, tape, X-0.05, y+h/2, z, cargo);
+      if (txt) plane(w*0.62, h*0.42, label(txt), [X-0.132, y+h/2, z+w*0.02], [0,0,1], [0,1,0], cargo); };
+    carton(-0.40, 0.57, 0.38, 0.30, 'FOURNITURES\nSCOLAIRES'); carton(0.0, 0.57, 0.38, 0.30, 'CAHIERS\nSTYLOS'); carton(0.40, 0.57, 0.38, 0.30, 'DONS');
+    carton(-0.37, 0.875, 0.42, 0.26, 'LIVRES'); carton(0.34, 0.875, 0.34, 0.24, 'MATÉRIEL\nDE SPORT');
+    [[0.0, 1.03, 0xd5202a], [-0.40, 1.285, 0x1f6fb4]].forEach(([z, y, col]) => { // cartables
+      const m = new THREE.MeshStandardMaterial({color:col, roughness:0.7});
+      rbox(0.15, 0.30, 0.24, 0.05, m, X-0.05, y, z, cargo); rbox(0.03, 0.12, 0.16, 0.02, m, X-0.13, y-0.05, z, cargo); });
+    [[0.0, 1.29, 0xf2f2f2], [0.28, 1.225, 0xe4b350], [0.48, 1.225, 0xd5202a]].forEach(([z, y, col]) => { // ballons
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.11, 20, 14), new THREE.MeshStandardMaterial({color:col, roughness:0.5})); b.position.set(X-0.02, y, z); b.castShadow = true; cargo.add(b); });
+    openParts.rear = {G, reveal:[hole, cargo], apply:k => G.rotation.y = -k*1.8};
+  }
+  Object.values(openParts).forEach(p => p.reveal.forEach(o => o.visible = false));
+}
+function setOpen(key, on){
+  (key === 'doors' ? ['dr','dl'] : [key]).forEach(k => openTarget[k] = on ? 1 : 0);
+  const b = document.querySelector(`[data-open="${key}"]`); if (b) b.classList.toggle('on', on);
+}
+function updateOpenings(dt){
+  for (const k in open){
+    if (open[k] === openTarget[k]) continue;
+    const d = openTarget[k] - open[k]; open[k] = Math.abs(d) <= dt*1.5 ? openTarget[k] : open[k] + Math.sign(d)*dt*1.5;
+    const p = openParts[k], e = open[k]; p.apply(e*e*(3-2*e));
+    p.reveal.forEach((o, i) => o.visible = open[k] > (i ? 0.3 : 0.01)); // le contenu en relief n'apparaît qu'une fois l'ouvrant dégagé
+  }
+}
+
 let showZones = true, selected = null, hovered = null;
 const pending = new Map();
 
@@ -791,6 +920,12 @@ const headlights = [1,-1].map(s => {
 });
 
 const decorGroups = {};
+function scatterRocks(g, n, color, period, zmin = 1.7, zmax = 16){
+  const m = new THREE.MeshStandardMaterial({color, roughness:1});
+  for (let i=0;i<n;i++){ const r = 0.06 + ((i*53)%19)/19*0.22, side = i%2 ? 1 : -1;
+    const o = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), m);
+    o.position.set(-period/2 + ((i*97)%101)/101*period, r*0.45, side*(zmin + ((i*31)%23)/23*(zmax-zmin))); o.rotation.set(i, i*2, i*3); o.castShadow = true; g.add(o); scrollable(g, o, period); }
+}
 function mkGroup(id){ const g = new THREE.Group(); g.visible = false; scene.add(g); decorGroups[id] = g; return g; }
 
 // Garage : showroom sombre, arcs lumineux concentriques au plafond, sol noir miroir, plateau blanc
@@ -873,6 +1008,7 @@ let garageEnv;
   // traces de pneus
   const tm = new THREE.MeshStandardMaterial({color:0xb88645, roughness:1});
   [0.64,-0.64].forEach(z => { const t = new THREE.Mesh(new THREE.PlaneGeometry(14, 0.17), tm); t.rotation.x = -Math.PI/2; t.position.set(-8.6, 0.006, z); g.add(t); });
+  scatterRocks(g, 46, 0xb88645, 140);
   // soleil bas
   const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(4, 40), new THREE.MeshBasicMaterial({color:0xfff0c8, fog:false}));
   sunDisc.position.set(-130, 10, -80); sunDisc.lookAt(0,0,0); g.add(sunDisc);
@@ -892,10 +1028,10 @@ let fireLight;
   const tentCols = [0xd0632b, 0xe4b350, 0x3b6e9e, 0x8d3a2a];
   [[-4.5,-3.2],[-6.5,0.5],[-3.2,4.2],[3.8,-4.8],[6.5,3.5]].forEach(([x,z],i) => {
     const t = new THREE.Mesh(new THREE.ConeGeometry(1.0, 1.25, 4), new THREE.MeshStandardMaterial({color:tentCols[i%4], roughness:0.8}));
-    t.position.set(x, 0.62, z); t.rotation.y = i*0.7; t.castShadow = true; g.add(t);
+    t.position.set(x, 0.62, z); t.rotation.y = i*0.7; t.castShadow = true; g.add(t); scrollable(g, t, 90);
   });
   // feu de camp
-  const fire = new THREE.Group(); fire.position.set(-2.4, 0, 2.6); g.add(fire);
+  const fire = new THREE.Group(); fire.position.set(-2.4, 0, 2.6); g.add(fire); scrollable(g, fire, 90);
   const logM = new THREE.MeshStandardMaterial({color:0x3b2616, roughness:1});
   for (let i=0;i<4;i++){ const l = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.6,8), logM); l.rotation.z = Math.PI/2; l.rotation.y = i*Math.PI/4; l.position.y = 0.06; fire.add(l); }
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.5, 12), new THREE.MeshBasicMaterial({color:0xffa53a}));
@@ -910,7 +1046,7 @@ let fireLight;
   const road = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({color:0x3a3c40, roughness:0.85}));
   road.rotation.x = -Math.PI/2; road.receiveShadow = true; g.add(road);
   const lineM = new THREE.MeshStandardMaterial({color:0xeeeeee, roughness:0.6});
-  for (let x=-40;x<40;x+=4){ const l = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.14), lineM); l.rotation.x = -Math.PI/2; l.position.set(x, 0.004, 2.4); g.add(l); }
+  for (let x=-40;x<40;x+=4){ const l = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.14), lineM); l.rotation.x = -Math.PI/2; l.position.set(x, 0.004, 2.4); g.add(l); scrollable(g, l, 80); }
   const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(200, 0.15, 9), new THREE.MeshStandardMaterial({color:0x9a958c, roughness:0.9}));
   sidewalk.position.set(0, 0.075, -8.5); sidewalk.receiveShadow = true; g.add(sidewalk);
   const facadeTex = new THREE.CanvasTexture(makeFacade()); facadeTex.colorSpace = THREE.SRGBColorSpace; facadeTex.wrapS = THREE.RepeatWrapping;
@@ -921,7 +1057,7 @@ let fireLight;
       new THREE.MeshStandardMaterial({color:0xd8ccb4}), new THREE.MeshStandardMaterial({color:0xd8ccb4}),
       new THREE.MeshStandardMaterial({color:0x5b6670}), new THREE.MeshStandardMaterial({color:0x5b6670}),
       new THREE.MeshStandardMaterial({map:t, roughness:0.9}), new THREE.MeshStandardMaterial({color:0xd8ccb4})]);
-    b.position.set(i*9.8, h/2, -17); b.receiveShadow = true; g.add(b);
+    b.position.set(i*9.8, h/2, -17); b.receiveShadow = true; g.add(b); scrollable(g, b, 127.4);
   }
   // arche de départ
   const archM = new THREE.MeshStandardMaterial({color:0x1f3fa8, roughness:0.5});
@@ -930,6 +1066,7 @@ let fireLight;
   const bannerTex = new THREE.CanvasTexture(makeBanner()); bannerTex.colorSpace = THREE.SRGBColorSpace;
   const banner = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.9, 8.8), [new THREE.MeshStandardMaterial({map:bannerTex}), new THREE.MeshStandardMaterial({map:bannerTex}), archM, archM, archM, archM]);
   banner.position.set(7, 3.6, 0.8); g.add(banner);
+  [p1, p2, banner].forEach(o => scrollable(g, o, 127.4));
 }
 function makeFacade(){
   const c = document.createElement('canvas'); c.width = 512; c.height = 768; const x = c.getContext('2d');
@@ -952,16 +1089,147 @@ function makeBanner(){
   return c;
 }
 
+/* ---------- Décors d'étape ---------- */
+const std = (color, rough = 0.9) => new THREE.MeshStandardMaterial({color, roughness:rough});
+function groundDisc(g, color, rough = 0.95){ const m = new THREE.Mesh(new THREE.CircleGeometry(170, 64), std(color, rough)); m.rotation.x = -Math.PI/2; m.receiveShadow = true; g.add(m); return m; }
+function archway(g, text, x, color = 0x121d45, ink = '#f3d48a'){
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 128; const cx = c.getContext('2d');
+  const draw = () => { cx.fillStyle = '#' + color.toString(16).padStart(6,'0'); cx.fillRect(0,0,1024,128);
+    cx.fillStyle = ink; cx.font = '400 60px "Alfa Slab One", serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(text, 512, 68); };
+  draw(); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  document.fonts.load('60px "Alfa Slab One"').then(() => { draw(); t.needsUpdate = true; }).catch(()=>{});
+  const m = std(color, 0.5), face = new THREE.MeshStandardMaterial({map:t});
+  const parts = [[x, 2, -3.6], [x, 2, 5.2]].map(p => { const o = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4, 0.4), m); o.position.set(...p); o.castShadow = true; return o; });
+  const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.9, 8.8), [face, face, m, m, m, m]); b.position.set(x, 3.6, 0.8); parts.push(b);
+  parts.forEach(o => { g.add(o); scrollable(g, o, 160); });
+}
+function peaks(g, n, z, hMin, hMax, color, snow, spread = 320){
+  const m = std(color, 1), sm = std(0xf4f4f0, 0.9);
+  for (let i=0;i<n;i++){
+    const h = hMin + ((i*37)%11)/11*(hMax-hMin), r = h*(0.9 + ((i*13)%7)/14), x = -spread/2 + (i + ((i*7)%5)/5)*spread/n;
+    const o = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), m); o.position.set(x, h/2 - 0.5, z + ((i*29)%9) - 4); o.rotation.y = i; g.add(o);
+    if (snow && h > snow){ const k = 0.3, c = new THREE.Mesh(new THREE.ConeGeometry(r*k*1.03, h*k, 7), sm); c.position.set(x, h - h*k/2 - 0.45, o.position.z); c.rotation.y = i; g.add(c); }
+  }
+}
+function palm(g, x, z, h = 6){
+  const p = new THREE.Group(); p.position.set(x, 0, z);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.22, h, 7), std(0x7a5a3a)); trunk.position.y = h/2; trunk.castShadow = true; p.add(trunk);
+  const lm = std(0x3f7a3a, 0.8);
+  for (let i=0;i<7;i++){ const l = new THREE.Mesh(new THREE.ConeGeometry(0.34, 2.6, 4), lm); const a = i/7*Math.PI*2;
+    l.position.set(Math.cos(a)*1.0, h - 0.25, Math.sin(a)*1.0); l.rotation.set(Math.sin(a)*1.25, 0, -Math.cos(a)*1.25); l.scale.z = 0.35; l.castShadow = true; p.add(l); }
+  g.add(p); return p;
+}
+// Biarritz : village départ en bord d'océan
+{
+  const g = mkGroup('biarritz');
+  groundDisc(g, 0xb7b0a2);
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(400, 180), new THREE.MeshStandardMaterial({color:0x2f7fa6, roughness:0.25, metalness:0.2}));
+  sea.rotation.x = -Math.PI/2; sea.position.set(0, 0.02, -112); g.add(sea);
+  const beach = new THREE.Mesh(new THREE.PlaneGeometry(400, 10), std(0xe6d3a3)); beach.rotation.x = -Math.PI/2; beach.position.set(0, 0.015, -18); g.add(beach);
+  // phare
+  const lh = new THREE.Group(); lh.position.set(-34, 0, -30);
+  const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(7, 0), std(0x6f6a60, 1)); rock.scale.y = 0.5; rock.position.y = 1; lh.add(rock);
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.6, 14, 16), std(0xf2f0ea, 0.7)); tower.position.y = 10; lh.add(tower);
+  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 1.6, 12), new THREE.MeshStandardMaterial({color:0x222222, emissive:0xffe9a8, emissiveIntensity:0.9})); lamp.position.y = 17.8; lh.add(lamp);
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(1.3, 1.2, 12), std(0x8f2a22)); cap.position.y = 19.2; lh.add(cap);
+  g.add(lh);
+  // fanions du village départ
+  const cols = [0xd5202a, 0xf2f2f2, 0x1f6fb4, 0xe4b350, 0x2f8f4a];
+  for (let i=0;i<26;i++){ const x = -78 + i*6, f = new THREE.Group(); f.position.set(x, 0, -6.5);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 4.2, 6), std(0xdddddd, 0.4)); pole.position.y = 2.1; f.add(pole);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 2.2), new THREE.MeshStandardMaterial({color:cols[i%5], roughness:0.7, side:THREE.DoubleSide})); flag.position.set(0.37, 3.0, 0); f.add(flag);
+    g.add(f); scrollable(g, f, 156); }
+  archway(g, 'VILLAGE DÉPART · BIARRITZ', 8, 0xd5202a, '#ffffff');
+}
+// Détroit de Gibraltar : le quai avant la traversée
+{
+  const g = mkGroup('gibraltar');
+  const sea = new THREE.Mesh(new THREE.CircleGeometry(175, 48), new THREE.MeshStandardMaterial({color:0x2a6f93, roughness:0.22, metalness:0.25}));
+  sea.rotation.x = -Math.PI/2; sea.position.y = -0.6; g.add(sea);
+  const quay = new THREE.Mesh(new THREE.BoxGeometry(400, 0.8, 18), std(0x8f8d88)); quay.position.set(0, -0.4, 0); quay.receiveShadow = true; g.add(quay);
+  const ym = std(0xe4b350, 0.6);
+  for (let i=0;i<28;i++){ const x = -81 + i*6;
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.5, 10), std(0x2a2a2a, 0.5)); b.position.set(x, 0.25, -8.2); b.castShadow = true; g.add(b); scrollable(g, b, 168);
+    const l = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.16), ym); l.rotation.x = -Math.PI/2; l.position.set(x, 0.005, -7.2); g.add(l); scrollable(g, l, 168); }
+  // le Rocher
+  const rk = new THREE.Mesh(new THREE.ConeGeometry(34, 40, 6), std(0x6d7067, 1)); rk.scale.set(1.9, 1, 0.8); rk.position.set(-70, 19, -120); rk.rotation.y = 0.5; g.add(rk);
+  peaks(g, 14, -168, 5, 13, 0x8a8f96, 0, 340); // la côte d'en face
+  // ferry
+  const f = new THREE.Group(); f.position.set(26, 0, -34);
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(34, 4, 7), std(0xf1f1ee, 0.5)); hull.position.y = 1.4; f.add(hull);
+  const band = new THREE.Mesh(new THREE.BoxGeometry(34.1, 0.9, 7.1), std(0x1f3fa8, 0.5)); band.position.y = 0.2; f.add(band);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(22, 2.6, 6), std(0xe6e6e2, 0.5)); deck.position.set(-2, 4.7, 0); f.add(deck);
+  const fun = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.3, 3, 12), std(0xd5202a, 0.5)); fun.position.set(-5, 7.5, 0); f.add(fun);
+  g.add(f);
+}
+// Haut Atlas : le col du Tichka
+{
+  const g = mkGroup('atlas');
+  groundDisc(g, 0x9a6f4f);
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(400, 7), std(0x4a4744, 0.85)); road.rotation.x = -Math.PI/2; road.position.y = 0.01; road.receiveShadow = true; g.add(road);
+  for (let x=-78;x<78;x+=6){ const l = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.13), std(0xeeeeee, 0.6)); l.rotation.x = -Math.PI/2; l.position.set(x, 0.016, 0); g.add(l); scrollable(g, l, 156); }
+  peaks(g, 13, -42, 10, 22, 0x8c5c40, 0);
+  peaks(g, 11, -95, 30, 52, 0x6f5548, 34);
+  peaks(g, 9, 70, 14, 30, 0x86583e, 0);
+  scatterRocks(g, 60, 0x7d5a44, 160, 4.2, 20);
+  // panneau du col
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256; const x = c.getContext('2d');
+  x.fillStyle = '#f4efe3'; x.fillRect(0,0,512,256); x.strokeStyle = '#8f2a22'; x.lineWidth = 14; x.strokeRect(7,7,498,242);
+  x.fillStyle = '#1b1d22'; x.textAlign = 'center'; x.font = '700 58px Archivo, Arial'; x.fillText("TIZI N'TICHKA", 256, 112); x.font = '700 46px Archivo, Arial'; x.fillText('ALT. 2260 m', 256, 190);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const sign = new THREE.Group(); sign.position.set(5, 0, -4.6);
+  const board = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, 0.06), [std(0xcccccc), std(0xcccccc), std(0xcccccc), std(0xcccccc), new THREE.MeshStandardMaterial({map:t}), std(0xcccccc)]); board.position.y = 2.2; board.castShadow = true; sign.add(board);
+  [-0.9, 0.9].forEach(dx => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 8), std(0x777777, 0.5)); p.position.set(dx, 1.1, -0.05); sign.add(p); });
+  g.add(sign); scrollable(g, sign, 160);
+}
+// Marrakech : l'arrivée au pied des remparts
+{
+  const g = mkGroup('marrakech');
+  groundDisc(g, 0xc99a72);
+  const ocre = std(0xc47a52, 0.95);
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(400, 5, 2), ocre); wall.position.set(0, 2.5, -22); wall.receiveShadow = true; g.add(wall);
+  const mer = new THREE.InstancedMesh(new THREE.BoxGeometry(0.9, 0.9, 2), ocre, 200); const mm = new THREE.Matrix4();
+  for (let i=0;i<200;i++){ mm.makeTranslation(-199 + i*2, 5.45, -22); mer.setMatrixAt(i, mm); } g.add(mer);
+  for (let i=0;i<7;i++){ const tw = new THREE.Mesh(new THREE.BoxGeometry(4, 7.4, 3.4), ocre); tw.position.set(-72 + i*24, 3.7, -21.6); g.add(tw); scrollable(g, tw, 168); }
+  // minaret
+  const mn = new THREE.Group(); mn.position.set(-26, 0, -40);
+  const m1 = new THREE.Mesh(new THREE.BoxGeometry(5, 26, 5), std(0xc98b5e)); m1.position.y = 13; mn.add(m1);
+  const m2 = new THREE.Mesh(new THREE.BoxGeometry(2.4, 5, 2.4), std(0xc98b5e)); m2.position.y = 28.5; mn.add(m2);
+  const m3 = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 8), std(0xe4b350, 0.3)); m3.position.y = 31.6; mn.add(m3);
+  g.add(mn);
+  for (let i=0;i<16;i++){ const p = palm(g, -76 + i*10 + (i%3), i%2 ? -11 - (i%4)*1.5 : 9 + (i%5)*1.5, 5 + (i%3)); scrollable(g, p, 160); }
+  peaks(g, 10, -150, 18, 34, 0x8f7f86, 22, 340); // l'Atlas au loin
+  archway(g, 'ARRIVÉE · MARRAKECH', 8, 0x8f2a22, '#f3d48a');
+}
+
 const DECORS = {
   studio: {name:'Showroom', desc:'Garage sombre, arcs lumineux et sol miroir : parfait pour les reflets', garage:true,
     sky:[0x050506, 0x0a0a0c, 0x0a0a0c], fog:[0x0a0a0c, 40, 120], hemi:[0xfff4e6, 0x1c1c20, 0.5], sun:[0xfff4e6, 1.5, [0.8,10,1.6]], env:1.1, exposure:1.05, night:false},
-  desert: {name:'Désert marocain', desc:'Les dunes de Merzouga en fin de journée',
-    sky:[0x4f86c6, 0xf6c88f, 0xd9a55f], fog:[0xf0c48e, 30, 150], hemi:[0xfff1d6, 0xb0773a, 0.6], sun:[0xffcf96, 3.2, [-9,4.5,-6]], env:0.7, exposure:1.05, night:false},
-  bivouac: {name:'Bivouac de nuit', desc:'Feu de camp, tentes et phares allumés',
-    sky:[0x03061a, 0x1a2552, 0x1a1410], fog:[0x101830, 12, 80], hemi:[0x40508a, 0x1a120a, 0.35], sun:[0x9fb4ff, 0.55, [6,10,-4]], env:0.12, exposure:1.15, night:true},
   ville: {name:'Départ de Paris', desc:'Façades haussmanniennes et arche de départ',
     sky:[0x8e9aa8, 0xd2d6da, 0x3a3c40], fog:[0xc9ced3, 20, 90], hemi:[0xdfe6ee, 0x55524c, 0.8], sun:[0xf2f0ea, 1.6, [6,10,4]], env:0.8, exposure:1.0, night:false},
+  biarritz: {name:'Biarritz, village départ', desc:'Fanions, phare et océan avant le grand départ',
+    sky:[0x3f7fc4, 0xbfdcee, 0x2f7fa6], fog:[0xcfe3ee, 50, 190], hemi:[0xeaf4ff, 0x8a8478, 0.85], sun:[0xfff6e2, 2.6, [7,9,6]], env:0.8, exposure:1.0, night:false},
+  gibraltar: {name:'Détroit de Gibraltar', desc:'Sur le quai, juste avant la traversée vers le Maroc',
+    sky:[0x4a7fb5, 0xd6e2e8, 0x2a6f93], fog:[0xd3dfe5, 45, 185], hemi:[0xeef4f8, 0x6f7a80, 0.85], sun:[0xfff1d8, 2.4, [-6,8,7]], env:0.8, exposure:1.0, night:false},
+  desert: {name:'Dunes de Merzouga', desc:'Le désert marocain en fin de journée',
+    sky:[0x4f86c6, 0xf6c88f, 0xd9a55f], fog:[0xf0c48e, 30, 150], hemi:[0xfff1d6, 0xb0773a, 0.6], sun:[0xffcf96, 3.2, [-9,4.5,-6]], env:0.7, exposure:1.05, night:false, dust:0xd9b27c},
+  bivouac: {name:'Bivouac de nuit', desc:'Feu de camp, tentes et phares allumés',
+    sky:[0x03061a, 0x1a2552, 0x1a1410], fog:[0x101830, 12, 80], hemi:[0x40508a, 0x1a120a, 0.35], sun:[0x9fb4ff, 0.55, [6,10,-4]], env:0.12, exposure:1.15, night:true, dust:0x6b5a48},
+  atlas: {name:'Col du Tichka', desc:'La traversée du Haut Atlas, sommets enneigés',
+    sky:[0x3f78c0, 0xcfe0ee, 0x9a6f4f], fog:[0xcbd8e2, 50, 200], hemi:[0xeaf2fb, 0x8a5f44, 0.8], sun:[0xfff3df, 2.7, [5,9,7]], env:0.75, exposure:1.0, night:false, dust:0xa98466},
+  marrakech: {name:'Arrivée à Marrakech', desc:'Les remparts ocre, les palmiers et l\'arche d\'arrivée',
+    sky:[0x5a7fc0, 0xf3c9a0, 0xc99a72], fog:[0xeec9a6, 45, 180], hemi:[0xfff0dc, 0xa8683e, 0.75], sun:[0xffd9a8, 2.9, [8,6,7]], env:0.75, exposure:1.05, night:false, dust:0xd0a580},
 };
+// Trajet indicatif : les grandes étapes, chacune reliée à un décor
+const STAGES = [
+  {decor:'ville', name:'Paris', note:'Départ de l\'équipage', lat:48.86, lon:2.35},
+  {decor:'biarritz', name:'Biarritz', note:'Village départ', lat:43.48, lon:-1.56},
+  {decor:'gibraltar', name:'Algésiras', note:'Traversée du détroit de Gibraltar', lat:36.13, lon:-5.45},
+  {decor:'desert', name:'Merzouga', note:'Les pistes et les dunes', lat:31.10, lon:-4.01},
+  {decor:'bivouac', name:'Bivouac', note:'Les nuits dans le désert', lat:30.35, lon:-5.85},
+  {decor:'atlas', name:'Col du Tichka', note:'Le Haut Atlas', lat:31.29, lon:-7.38},
+  {decor:'marrakech', name:'Marrakech', note:'Ligne d\'arrivée', lat:31.63, lon:-8.0},
+];
 let currentDecor = 'studio', lightsOn = false, warnOn = false;
 function setLights(on){
   lightsOn = on;
@@ -987,8 +1255,8 @@ function setDecor(id){
   setLights(d.night);
   fireLight.intensity = d.night ? 9 : 0;
   // poser la voiture sur le sol du décor
-  car.position.y = 0;
-  document.querySelectorAll('#decorList .card').forEach(c => c.classList.toggle('on', c.dataset.id === id));
+  resetScroll();
+  document.querySelectorAll('#decorList .card, [data-stage]').forEach(c => c.classList.toggle('on', (c.dataset.id || c.dataset.stage) === id));
 }
 
 /* ---------- Livrées ---------- */
@@ -997,16 +1265,20 @@ const badgeReady = new Promise(res => { badgeImg.onload = res; badgeImg.onerror 
 badgeImg.src = 'logo-badge.png';
 
 const decoGroup = new THREE.Group(); car.add(decoGroup);
-const stripeMat = new THREE.MeshStandardMaterial({color:0xc9ef1f, roughness:0.4, polygonOffset:true, polygonOffsetFactor:-1});
+const stripeMat = new THREE.MeshStandardMaterial({color:0xc9ef1f, roughness:0.4, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-1});
+const stripeParts = [];
 function rallyStripes(on){
-  decoGroup.clear();
+  stripeParts.splice(0).forEach(m => m.removeFromParent());
   if (!on) return;
-  // deux bandes du capot jusqu'au toit et à la porte arrière
+  // deux bandes du capot jusqu'au toit et à la porte arrière ; elles suivent les ouvrants
+  Object.values(openParts).forEach(p => p.apply(0)); car.updateMatrixWorld(true);
   [-0.30, 0.30].forEach(zz => {
-    decoGroup.add(hoodPatch(0.70, 1.48, zz, 0.11, stripeMat, 0.003));
-    decoGroup.add(plane(0.11, 0.95, stripeMat, [-1.17, BOX_TOP+0.019, zz], [0,0,1], [1,0,0]));
-    decoGroup.add(plane(0.11, 0.98, stripeMat, [BOX_REAR-0.004, 1.03, zz], [0,0,1], [0,1,0]));
+    const h = hoodPatch(0.70, 1.48, zz, 0.11, stripeMat, 0.005); openParts.hood.G.attach(h);
+    const r = plane(0.11, 0.95, stripeMat, [-1.17, BOX_TOP+0.019, zz], [0,0,1], [1,0,0]);
+    const d = plane(0.11, 0.98, stripeMat, [BOX_REAR-0.004, 1.03, zz], [0,0,1], [0,1,0]); openParts.rear.G.attach(d);
+    stripeParts.push(h, r, d);
   });
+  for (const k in open){ const e = open[k]; openParts[k].apply(e*e*(3-2*e)); }
 }
 
 const both = (id, content) => { setContent(id+'-d', content); setContent(id+'-g', content); };
@@ -1055,9 +1327,63 @@ const VIEWS = {
   rear34:{pos:[-5.6, 2.2, 4.2], tgt:[-0.4, 0.9, 0]},
   top:{pos:[-0.3, 8.8, 1.2], tgt:[-0.3, 0.8, 0]},
 };
-let tween = null;
+let tween = null, intro = null;
+/* ---------- Mode « En route » ---------- */
+let driving = false, speed = 0;
+const dust = (() => {
+  const n = 110, pos = new Float32Array(n*3), age = new Float32Array(n).map(() => Math.random()*1.6);
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  const gr = x.createRadialGradient(32,32,2,32,32,32); gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(1,'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0,0,64,64);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(g, new THREE.PointsMaterial({map:new THREE.CanvasTexture(c), color:0xd9b27c, size:1.1, transparent:true, opacity:0.28, depthWrite:false}));
+  pts.frustumCulled = false; pts.visible = false; scene.add(pts);
+  return {pts, pos, age, n};
+})();
+function setDrive(on){
+  if (on && DECORS[currentDecor].garage){ setDecor('desert'); toast('En route vers les dunes'); }
+  driving = on; document.getElementById('driveBtn').classList.toggle('on', on);
+  if (on) ['doors','hood','rear'].forEach(k => setOpen(k, false));
+}
+function updateDrive(dt, t){
+  speed += ((driving ? 13 : 0) - speed)*Math.min(1, dt*1.5);
+  if (speed < 0.02 && !driving){ if (speed){ speed = 0; car.position.y = 0; car.rotation.z = 0; dust.pts.visible = false; resetScroll(); } return; }
+  const k = speed/13;
+  wheels.forEach(w => w.spin.rotation.z -= w.s*speed/WHEEL_R*dt);
+  car.position.y = k*(0.010*Math.sin(t*9.1) + 0.007*Math.sin(t*14.7));
+  car.rotation.z = k*0.005*Math.sin(t*5.3);
+  (decorGroups[currentDecor].userData.scroll || []).forEach(o => { const u = o.userData; if (u.x0 === undefined) u.x0 = o.position.x;
+    o.position.x -= speed*dt; if (o.position.x < -u.period/2) o.position.x += u.period; });
+  const d = DECORS[currentDecor]; dust.pts.visible = !!d.dust;
+  if (d.dust){
+    dust.pts.material.color.set(d.dust); dust.pts.material.opacity = 0.3*k;
+    for (let i=0;i<dust.n;i++){
+      dust.age[i] += dt; if (dust.age[i] > 1.6) dust.age[i] = 0;
+      const a = dust.age[i], s = i%2 ? 1 : -1, j = (i*37%17)/17 - 0.5;
+      dust.pos[i*3] = AX_R - 0.2 - a*speed*0.55; dust.pos[i*3+1] = 0.12 + a*(0.7 + j*0.8); dust.pos[i*3+2] = s*(0.62 + a*0.35) + j*0.5*a;
+    }
+    dust.pts.geometry.attributes.position.needsUpdate = true;
+  }
+}
+function resetScroll(){ Object.values(decorGroups).forEach(g => (g.userData.scroll || []).forEach(o => { if (o.userData.x0 !== undefined) o.position.x = o.userData.x0; })); }
+function scrollable(g, o, period){ o.userData.period = period; (g.userData.scroll ||= []).push(o); return o; }
+/* ---------- Intro cinématique ---------- */
+function startIntro(){
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  intro = {t:0, dur:7};
+}
+function updateIntro(dt){
+  intro.t += dt; const k = Math.min(1, intro.t/intro.dur), e = k*k*(3-2*k);
+  const end = new THREE.Vector3(...VIEWS.front34.pos), m = innerWidth < 820 ? 1.45 : 1;
+  const a1 = Math.atan2(end.z, end.x), a = a1 + (1-e)*Math.PI*1.35, r = (4.3 + 3.0*e)*m, y = 0.6 + 1.7*e;
+  camera.position.set(Math.cos(a)*r, y, Math.sin(a)*r); controls.target.set(0.2*e, 0.85, 0);
+  if (!lightsOn && intro.t > 1.4 && intro.t < intro.dur - 1.2) setLights(true);
+  if (k >= 1) endIntro();
+}
+function endIntro(){ if (!intro) return; intro = null; setLights(DECORS[currentDecor].night); }
+
 function goView(name){
   const v = VIEWS[name]; if (!v) return;
+  endIntro();
   const k = innerWidth < 820 ? 1.45 : 1;
   const t1 = new THREE.Vector3(...v.tgt), p1 = new THREE.Vector3(...v.pos).sub(t1).multiplyScalar(k).add(t1);
   tween = {t:0, p0:camera.position.clone(), t0:controls.target.clone(), p1, t1};
@@ -1074,7 +1400,8 @@ function pick(e){
   const h = hits[0];
   return h && h.object.userData.zone ? h.object.userData.zone : null;
 }
-canvas.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; stopRotate(); });
+canvas.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; stopRotate(); endIntro(); });
+canvas.addEventListener('wheel', () => endIntro(), {passive:true});
 canvas.addEventListener('pointerup', e => {
   if (!downAt) return;
   const moved = Math.hypot(e.clientX-downAt[0], e.clientY-downAt[1]);
@@ -1163,13 +1490,31 @@ function renderPack(){
   const sel = ZONES.filter(z => z.inPack);
   const tot = sel.reduce((a,z)=>a+z.price, 0);
   packEl.innerHTML = `<h3 style="margin-top:0">Mon pack sponsor</h3>` + (sel.length
-    ? `<div class="tot">${euros(tot)}</div><ul>${sel.map(z=>`<li>${z.name} (${euros(z.price)})</li>`).join('')}</ul><button class="btn gold" id="copyPack">Copier le récapitulatif</button>`
+    ? `<div class="tot">${euros(tot)}</div><ul>${sel.map(z=>`<li>${z.name} (${euros(z.price)})</li>`).join('')}</ul><div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn gold" id="askBtn">Je suis intéressé</button><button class="btn" id="copyPack">Copier le récapitulatif</button></div>`
     : `<p class="lead" style="margin:0">Coche « Ajouter à mon pack » sur un ou plusieurs emplacements pour voir le total.</p>`);
   const cp = document.getElementById('copyPack');
-  if (cp) cp.onclick = async () => {
-    const txt = `Pack sponsor 4L Trophy 2027, équipage 435 (Le Tandem de la Victoire)\n` + sel.map(z=>`- ${z.name} (${Math.round(z.w*100)} × ${Math.round(z.h*100)} cm) : ${euros(z.price)}`).join('\n') + `\nTotal : ${euros(tot)}`;
-    try { await navigator.clipboard.writeText(txt); toast('Récapitulatif copié'); } catch { toast('Copie impossible ici'); }
-  };
+  if (cp) cp.onclick = () => copyText(packText(), 'Récapitulatif copié');
+  const ab = document.getElementById('askBtn'); if (ab) ab.onclick = openAsk;
+}
+function packText(){
+  const sel = ZONES.filter(z => z.inPack), tot = sel.reduce((a,z)=>a+z.price, 0);
+  return `Pack sponsor 4L Trophy 2027, équipage 435 (Le Tandem de la Victoire)\n` + sel.map(z=>`- ${z.name}${z.group ? ' (' + z.group.toLowerCase() + ')' : ''}, ${Math.round(z.w*100)} × ${Math.round(z.h*100)} cm : ${euros(z.price)}`).join('\n') + `\nTotal : ${euros(tot)}`;
+}
+async function copyText(txt, ok){ try { await navigator.clipboard.writeText(txt); toast(ok); } catch { toast('Copie impossible ici, sélectionne le texte'); } }
+// Adresse de contact de l'équipage : à renseigner pour activer le bouton « Envoyer par e-mail »
+const CONTACT_EMAIL = '';
+function askText(){
+  const org = document.getElementById('askOrg').value.trim(), mail = document.getElementById('askMail').value.trim();
+  return `Bonjour,\n\nLe sponsoring de votre 4L pour le 4L Trophy 2027 m'intéresse${org ? ' (' + org + ')' : ''}. Voici les emplacements que j'ai retenus :\n\n` + packText() + `\n\n` + (mail ? `Vous pouvez me recontacter ici : ${mail}\n\n` : '') + `Bien cordialement`;
+}
+function openAsk(){
+  const upd = () => { const t = askText(); document.getElementById('askText').value = t;
+    const m = document.getElementById('askMailto');
+    if (CONTACT_EMAIL){ m.style.display = ''; m.href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Sponsoring 4L Trophy 2027, équipage 435')}&body=${encodeURIComponent(t)}`; } };
+  document.getElementById('askOrg').oninput = upd; document.getElementById('askMail').oninput = upd; upd();
+  document.getElementById('askCopy').onclick = () => copyText(askText(), 'Message copié');
+  document.getElementById('askClose').onclick = () => document.getElementById('askModal').classList.remove('on');
+  document.getElementById('askModal').classList.add('on');
 }
 function escapeHtml(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 fileIn.onchange = () => {
@@ -1193,6 +1538,23 @@ function buildStatic(){
   ACCENTS.forEach(p => { const s = document.createElement('div'); s.className = 'sw'; s.dataset.c = p; s.style.background = '#'+p.toString(16).padStart(6,'0'); s.onclick = () => setAccent(p); al.appendChild(s); });
   const dl = document.getElementById('decorList');
   Object.entries(DECORS).forEach(([id,d]) => { const c = document.createElement('div'); c.className = 'card'; c.dataset.id = id; c.innerHTML = `<b>${d.name}</b><span>${d.desc}</span>`; c.onclick = () => setDecor(id); dl.appendChild(c); });
+  // trajet : carte stylisée (projection simple des coordonnées) et liste des étapes
+  {
+    const W = 326, H = 400, px = lon => 80 + (lon + 8.2)/11*(W - 150), py = lat => 22 + (49.8 - lat)/20.6*(H - 44);
+    const pts = STAGES.map(s => [px(s.lon), py(s.lat)]);
+    const left = new Set(['gibraltar', 'atlas', 'marrakech']);
+    document.getElementById('routeMap').innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;border:1px solid var(--line);border-radius:12px;background:#0b1230">
+      <text x="${px(2.2)}" y="${py(46.4)}" class="rm-c">FRANCE</text><text x="${px(-3.8)}" y="${py(40.2)}" class="rm-c">ESPAGNE</text><text x="${px(-5.2)}" y="${py(33.3)}" class="rm-c">MAROC</text>
+      <line x1="${px(-7.6)}" y1="${py(35.95)}" x2="${px(-2.2)}" y2="${py(35.95)}" stroke="#2f7fa6" stroke-width="5" stroke-linecap="round" opacity=".55"/>
+      <text x="${px(-1.9)}" y="${py(35.95)+4}" class="rm-s">Détroit</text>
+      <polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="#e4b350" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>
+      ${STAGES.map((s, i) => `<g data-stage="${s.decor}" class="rm-stop"><circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="5.5"/><text x="${pts[i][0] + (left.has(s.decor) ? -11 : 11) + (s.decor === 'atlas' ? 14 : 0)}" y="${pts[i][1] + ({bivouac:17, atlas:21, marrakech:-7}[s.decor] ?? 4)}" text-anchor="${left.has(s.decor) ? 'end' : 'start'}">${s.name}</text></g>`).join('')}
+    </svg>`;
+    const sl = document.getElementById('stageList');
+    STAGES.forEach((s, i) => { const c = document.createElement('div'); c.className = 'card'; c.dataset.stage = s.decor; c.style.marginTop = i ? '' : '10px';
+      c.innerHTML = `<b>${i+1}. ${s.name}</b><span>${s.note}</span>`; sl.appendChild(c); });
+    document.querySelectorAll('[data-stage]').forEach(el => el.onclick = () => setDecor(el.dataset.stage));
+  }
   document.getElementById('optRack').onchange = e => rack.visible = e.target.checked;
   document.getElementById('optSpare').onchange = e => extras.spare.visible = e.target.checked;
   document.getElementById('optJerry').onchange = e => extras.jerry.visible = e.target.checked;
@@ -1202,6 +1564,8 @@ function buildStatic(){
   document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { stopRotate(); goView(b.dataset.view); });
   document.getElementById('rotateBtn').onclick = () => { controls.autoRotate = !controls.autoRotate; document.getElementById('rotateBtn').classList.toggle('on', controls.autoRotate); };
   document.getElementById('zonesBtn').onclick = () => { showZones = !showZones; document.getElementById('zonesBtn').classList.toggle('on', showZones); redrawAll(); };
+  document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { if (driving) setDrive(false); setOpen(b.dataset.open, !b.classList.contains('on')); });
+  document.getElementById('driveBtn').onclick = () => setDrive(!driving);
   document.getElementById('lightsBtn').onclick = () => setLights(!lightsOn);
   document.getElementById('warnBtn').onclick = () => setWarn(!warnOn);
   document.getElementById('shotBtn').onclick = capture;
@@ -1238,6 +1602,8 @@ addEventListener('resize', resize);
 const clock = new THREE.Clock();
 function loop(){
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  if (intro) updateIntro(dt);
+  updateOpenings(dt); updateDrive(dt, t);
   if (tween){
     tween.t = Math.min(1, tween.t + dt/0.9);
     const k = tween.t < .5 ? 4*tween.t**3 : 1 - (-2*tween.t+2)**3/2;
@@ -1264,12 +1630,13 @@ await Promise.race([badgeReady, new Promise(r=>setTimeout(r,1500))]);
 await document.fonts.ready.catch(()=>{});
 setLivery('actuelle');
 renderLists();
+startIntro();
 loop();
 document.getElementById('loading').style.opacity = 0;
 setTimeout(()=>document.getElementById('loading').remove(), 600);
 setTimeout(()=>{ const h = document.getElementById('hint'); if (h) h.style.opacity = 0; }, 6000);
 window.__ready = true;
-window.__api = {cam:(p,t)=>{camera.position.set(...p);controls.target.set(...t);controls.update();}, extras, snap:(n)=>{goView(n); tween.t=0.999;}, goView, setDecor, setLivery, selectZone, toggleZones:()=>document.getElementById('zonesBtn').click()};
+window.__api = {setOpen, setDrive, cam:(p,t)=>{endIntro();camera.position.set(...p);controls.target.set(...t);controls.update();}, extras, snap:(n)=>{goView(n); tween.t=0.999;}, goView, setDecor, setLivery, selectZone, toggleZones:()=>document.getElementById('zonesBtn').click()};
 </script>
 </body>
 </html>

@@ -4,12 +4,17 @@ Configurateur 3D de la Renault 4 F4 de 1983 de l'équipage 435 du 4L Trophy 2027
 
 Il sert à montrer aux sponsors ce que donnerait leur logo sur la voiture :
 
-- 27 emplacements sponsors cliquables (avant, côtés, arrière, toit), avec leurs dimensions et un tarif indicatif
-- import d'un logo ou saisie d'un nom, total du pack et récapitulatif à copier
+- 26 emplacements sponsors cliquables (avant, côtés, arrière, toit), avec leurs dimensions et un tarif indicatif, plus 3 emplacements réservés à l'organisation
+- import d'un logo ou saisie d'un nom, total du pack, récapitulatif à copier et message « Je suis intéressé » prêt à envoyer
 - 4 livrées, couleurs de carrosserie et d'accents
 - équipements en option : galerie, roue de secours, jerricans, plaques, malle, pelle, phares longue portée, rampe LED, tandem sur le toit
-- 4 décors : showroom à sol miroir, désert, bivouac de nuit, départ de Paris
-- phares, warnings, vues rapides et capture d'image
+- portières, capot et porte arrière ouvrants, avec le moteur et le chargement solidaire
+- mode « En route » : roues qui tournent, décor qui défile, poussière
+- 8 décors qui suivent le trajet : showroom, Paris, Biarritz, détroit de Gibraltar, dunes, bivouac de nuit, col du Tichka, Marrakech
+- onglet Trajet : carte stylisée Paris → Marrakech (tracé indicatif)
+- intro cinématique, phares, warnings, vues rapides et capture d'image
+
+Pour activer l'envoi par e-mail du message « Je suis intéressé », renseigner `CONTACT_EMAIL` dans `index.html`.
 
 ## Technique
 
