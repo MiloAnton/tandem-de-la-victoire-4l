@@ -8,7 +8,7 @@ Il sert à montrer aux sponsors ce que donnerait leur logo sur la voiture :
 - import d'un logo ou saisie d'un nom, total du pack et récapitulatif à copier
 - 4 livrées, couleurs de carrosserie et d'accents
 - équipements en option : galerie, roue de secours, jerricans, plaques, malle, pelle, phares longue portée, rampe LED, tandem sur le toit
-- 4 décors : garage à néons, désert, bivouac de nuit, départ de Paris
+- 4 décors : showroom à sol miroir, désert, bivouac de nuit, départ de Paris
 - phares, warnings, vues rapides et capture d'image
 
 ## Technique

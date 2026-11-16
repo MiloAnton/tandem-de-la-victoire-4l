@@ -171,6 +171,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 /* ---------- Renderer, scène, caméra ---------- */
@@ -781,67 +782,65 @@ const headlights = [1,-1].map(s => {
 const decorGroups = {};
 function mkGroup(id){ const g = new THREE.Group(); g.visible = false; scene.add(g); decorGroups[id] = g; return g; }
 
-// Garage : atelier sombre, plafond de néons hexagonaux, dalles hexagonales
+// Garage : showroom sombre, arcs lumineux concentriques au plafond, sol noir miroir, plateau blanc
 let garageEnv;
 {
   const g = mkGroup('studio');
-  // lignes lumineuses : nid d'abeille au plafond et chevrons sur les murs latéraux
+  const CEIL = 4.6, RX = 26, RZ = 22;
+  const ARCS = [ // rayon, angle de départ, longueur d'arc
+    [3.5, 0.3, 2.2], [3.5, 3.4, 1.5], [4.9, 1.2, 2.9], [4.9, 4.9, 1.1], [6.4, -0.4, 2.0], [6.4, 2.6, 2.4],
+    [8.0, 0.9, 1.7], [8.0, 3.9, 2.6], [9.7, 2.0, 1.9], [9.7, 5.2, 1.5],
+  ];
+  const BARS = [-8.2,-7.1,-6.3,-4.9,-4.2,-2.8,-1.9,-0.6,0.5,1.4,2.9,3.6,5.1,6.2,7.4,8.3].map((x,i) => [x, 1.5 + ((i*7)%5)*0.42, 0.9 + ((i*3)%4)*0.38]);
   function buildLights(parent, mat, t, yOff){
-    const a = 1.2, r3 = Math.sqrt(3), segs = [];
-    for (let i=-5;i<=5;i++) for (let j=-3;j<=3;j++){
-      const cx = i*1.5*a, cz = j*r3*a + (i%2 ? r3*a/2 : 0);
-      if (Math.abs(cz) > 7.4) continue;
-      for (let k=0;k<3;k++){ // 3 arêtes par hexagone suffisent, les voisins fournissent les autres
-        const a0 = k*Math.PI/3, a1 = (k+1)*Math.PI/3;
-        segs.push([cx+a*Math.cos(a0), cz+a*Math.sin(a0), cx+a*Math.cos(a1), cz+a*Math.sin(a1)]);
-      }
-    }
-    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(a, t, t), mat, segs.length);
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0,1,0), one = new THREE.Vector3(1,1,1);
-    segs.forEach(([x0,z0,x1,z1], n) => { q.setFromAxisAngle(Y, Math.atan2(-(z1-z0), x1-x0));
-      m.compose(new THREE.Vector3((x0+x1)/2, 5.2+yOff, (z0+z1)/2), q, one); im.setMatrixAt(n, m); });
-    parent.add(im);
-    [1,-1].forEach(s => [-7.5,-4.5,-1.5,1.5,4.5,7.5].forEach(x => [1,-1].forEach(u => {
-      const b = new THREE.Mesh(new THREE.BoxGeometry(t, 1.35, t), mat);
-      b.position.set(x-0.22, 2.3+u*0.62+yOff, s*8.9); b.rotation.z = -u*0.36; parent.add(b);
-    })));
+    const flat = m => { m.rotation.x = Math.PI/2; return m; };
+    const ring = flat(new THREE.Mesh(new THREE.TorusGeometry(2.25, t*1.8, 8, 96), mat)); ring.position.y = CEIL-0.05+yOff; parent.add(ring);
+    ARCS.forEach(([r, a0, len]) => { const m = flat(new THREE.Mesh(new THREE.TorusGeometry(r, t, 6, 64, len), mat)); m.rotation.z = a0; m.position.y = CEIL-0.02+yOff; parent.add(m); });
+    BARS.forEach(([x, y, h]) => { const b = new THREE.Mesh(new THREE.BoxGeometry(t*1.6, h, t), mat); b.position.set(x, y+h/2+yOff, -RZ/2+0.06); parent.add(b); });
   }
-  const lightMat = new THREE.MeshBasicMaterial({color:0xffffff, fog:false});
-  buildLights(g, lightMat, 0.06, 0);
+  buildLights(g, new THREE.MeshBasicMaterial({color:0xfff6e8, fog:false}), 0.022, 0);
   // murs et plafond
-  const room = new THREE.Mesh(new THREE.BoxGeometry(22, 5.6, 18), new THREE.MeshStandardMaterial({color:0x121214, roughness:0.85, side:THREE.BackSide}));
-  room.position.y = 2.79; room.receiveShadow = true; g.add(room);
-  // sol en dalles hexagonales noires à joints rouges
-  const s = 128, W = 3*s, H = Math.round(Math.sqrt(3)*s);
-  const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
-  x.fillStyle = '#151517'; x.fillRect(0,0,W,H);
-  const hex = (cx, cy, r) => { x.beginPath(); for (let k=0;k<6;k++){ const a = k*Math.PI/3; x[k?'lineTo':'moveTo'](cx+r*Math.cos(a), cy+r*Math.sin(a)); } x.closePath(); x.stroke(); };
-  [[0,0],[W,0],[0,H],[W,H],[1.5*s,H/2]].forEach(([cx,cy]) => {
-    x.strokeStyle = '#2a2a2f'; x.lineWidth = 5; for (let r = s*0.86; r > 8; r -= s*0.13) hex(cx, cy, r);
-    x.strokeStyle = '#d5202a'; x.lineWidth = 6; hex(cx, cy, s);
-  });
-  const ft = new THREE.CanvasTexture(c); ft.colorSpace = THREE.SRGBColorSpace; ft.wrapS = ft.wrapT = THREE.RepeatWrapping;
-  ft.repeat.set(22/1.5, 18/0.866); ft.anisotropy = 8;
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(22, 18), new THREE.MeshPhysicalMaterial({map:ft, roughness:0.45, metalness:0, specularIntensity:0.12}));
-  floor.rotation.x = -Math.PI/2; floor.position.y = 0.002; floor.receiveShadow = true; g.add(floor);
-  // enseigne de l'équipage sur le mur du fond
+  const room = new THREE.Mesh(new THREE.BoxGeometry(RX, CEIL+0.02, RZ), new THREE.MeshStandardMaterial({color:0x2a2826, roughness:0.9, side:THREE.BackSide, emissive:0x1b1a19}));
+  room.position.y = CEIL/2; g.add(room);
+  { // plafonnier central : dalle noire piquée de points lumineux
+    const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d');
+    x.fillStyle = '#060606'; x.fillRect(0,0,512,512); x.fillStyle = '#f4efe6';
+    for (let i=0;i<34;i++) for (let j=0;j<34;j++){
+      const px = 8+i*15, py = 8+j*15, d = Math.hypot(px-256, py-256); if (d > 246) continue;
+      const r = 1.2 + 2.6*(0.5+0.5*Math.sin(px*0.035 + Math.sin(py*0.03)*2.2));
+      x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+    }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const d = new THREE.Mesh(new THREE.CircleGeometry(2.2, 64), new THREE.MeshBasicMaterial({map:t, fog:false}));
+    d.rotation.x = Math.PI/2; d.position.y = CEIL-0.03; g.add(d);
+  }
+  // sol noir poli : vrai miroir, assombri par un voile
+  const mirror = new Reflector(new THREE.PlaneGeometry(RX, RZ), {textureWidth:1024, textureHeight:1024, clipBias:0.003});
+  mirror.rotation.x = -Math.PI/2; mirror.position.y = 0.001; g.add(mirror);
+  const veil = new THREE.Mesh(new THREE.PlaneGeometry(RX, RZ), new THREE.MeshBasicMaterial({color:0x050506, transparent:true, opacity:0.5, depthWrite:false}));
+  veil.rotation.x = -Math.PI/2; veil.position.y = 0.003; g.add(veil);
+  // plateau de présentation
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 2.7, 0.02, 96), new THREE.MeshStandardMaterial({color:0x9c9a96, roughness:0.6}));
+  disc.position.y = -0.002; disc.receiveShadow = true; g.add(disc);
+  const halo = new THREE.Mesh(new THREE.RingGeometry(2.7, 2.74, 96), new THREE.MeshBasicMaterial({color:0xffffff, fog:false}));
+  halo.rotation.x = -Math.PI/2; halo.position.y = 0.006; g.add(halo);
+  // enseigne lumineuse de l'équipage sur le mur du fond
   const sc = document.createElement('canvas'); sc.width = 1536; sc.height = 220; const sx = sc.getContext('2d');
   const drawSign = () => { sx.clearRect(0,0,1536,220);
-  sx.font = '400 150px "Alfa Slab One", serif'; sx.textBaseline = 'middle';
-  const t1 = 'TANDEM DE LA VICTOIRE ', w1 = sx.measureText(t1).width, w2 = sx.measureText('435').width, x0 = (1536-w1-w2)/2;
-  sx.fillStyle = '#f2f2f2'; sx.fillText(t1, x0, 118); sx.fillStyle = '#d5202a'; sx.fillText('435', x0+w1, 118);
+    sx.font = '400 130px "Alfa Slab One", serif'; sx.textBaseline = 'middle'; sx.textAlign = 'center';
+    sx.fillStyle = '#f3d48a'; sx.fillText('TANDEM DE LA VICTOIRE', 768, 118);
   };
   drawSign();
   const st = new THREE.CanvasTexture(sc); st.colorSpace = THREE.SRGBColorSpace;
-  document.fonts.load('150px "Alfa Slab One"').then(() => { drawSign(); st.needsUpdate = true; }).catch(()=>{});
-  plane(8.4, 1.2, new THREE.MeshBasicMaterial({map:st, transparent:true, fog:false}), [-10.95, 2.9, 0], [0,0,-1], [0,1,0], g);
-  // carte d'environnement dédiée : ce sont ces néons qui se reflètent dans la carrosserie
+  document.fonts.load('130px "Alfa Slab One"').then(() => { drawSign(); st.needsUpdate = true; }).catch(()=>{});
+  plane(7.6, 1.09, new THREE.MeshBasicMaterial({map:st, transparent:true, fog:false}), [-RX/2+0.05, 2.3, 0], [0,0,-1], [0,1,0], g);
+  // carte d'environnement dédiée : ce sont ces arcs qui se reflètent dans la carrosserie
   const env = new THREE.Scene();
-  env.add(new THREE.Mesh(new THREE.BoxGeometry(22, 5.6, 18), new THREE.MeshBasicMaterial({color:0x08080a, side:THREE.BackSide})));
-  env.children[0].position.y = 1.8;
-  const hot = new THREE.MeshBasicMaterial({color:0xffffff}); hot.color.setScalar(14);
-  buildLights(env, hot, 0.12, -1.0);
-  const fl = new THREE.Mesh(new THREE.PlaneGeometry(22, 18), new THREE.MeshBasicMaterial({color:0x1a1213})); fl.rotation.x = -Math.PI/2; fl.position.y = -0.99; env.add(fl);
+  const eb = new THREE.Mesh(new THREE.BoxGeometry(RX, CEIL+1, RZ), new THREE.MeshBasicMaterial({color:0x0b0b0c, side:THREE.BackSide})); eb.position.y = CEIL/2-0.5; env.add(eb);
+  const hot = new THREE.MeshBasicMaterial({color:0xffffff}); hot.color.setScalar(18);
+  buildLights(env, hot, 0.06, -1.0);
+  const soft = new THREE.MeshBasicMaterial({color:0xffffff}); soft.color.setScalar(1.6);
+  const panel = new THREE.Mesh(new THREE.CircleGeometry(2.1, 48), soft); panel.rotation.x = Math.PI/2; panel.position.y = CEIL-1.04; env.add(panel);
   garageEnv = pmrem.fromScene(env, 0.01).texture;
 }
 // Désert
@@ -942,8 +941,8 @@ function makeBanner(){
 }
 
 const DECORS = {
-  studio: {name:'Garage', desc:'Atelier sombre, néons hexagonaux : les reflets font le reste', garage:true,
-    sky:[0x050506, 0x0a0a0c, 0x0a0a0c], fog:[0x0a0a0c, 30, 90], hemi:[0xffffff, 0x2a2a30, 0.55], sun:[0xffffff, 1.1, [1.5,10,2.5]], env:1.15, exposure:1.05, night:false},
+  studio: {name:'Showroom', desc:'Garage sombre, arcs lumineux et sol miroir : parfait pour les reflets', garage:true,
+    sky:[0x050506, 0x0a0a0c, 0x0a0a0c], fog:[0x0a0a0c, 40, 120], hemi:[0xfff4e6, 0x1c1c20, 0.5], sun:[0xfff4e6, 1.5, [0.8,10,1.6]], env:1.1, exposure:1.05, night:false},
   desert: {name:'Désert marocain', desc:'Les dunes de Merzouga en fin de journée',
     sky:[0x4f86c6, 0xf6c88f, 0xd9a55f], fog:[0xf0c48e, 30, 150], hemi:[0xfff1d6, 0xb0773a, 0.6], sun:[0xffcf96, 3.2, [-9,4.5,-6]], env:0.7, exposure:1.05, night:false},
   bivouac: {name:'Bivouac de nuit', desc:'Feu de camp, tentes et phares allumés',
