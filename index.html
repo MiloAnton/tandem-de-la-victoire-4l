@@ -184,7 +184,8 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
 const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+const baseEnv = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = baseEnv;
 
 const camera = new THREE.PerspectiveCamera(36, 1, 0.05, 400);
 camera.position.set(6.2, 2.6, 5.4);
@@ -198,7 +199,7 @@ controls.autoRotateSpeed = 0.8;
 
 /* ---------- Matériaux ---------- */
 const M = {
-  paint: new THREE.MeshPhysicalMaterial({color:0x1f36b4, roughness:0.32, metalness:0.05, clearcoat:0.7, clearcoatRoughness:0.25}),
+  paint: new THREE.MeshPhysicalMaterial({color:0x1f36b4, roughness:0.32, metalness:0.05, clearcoat:1, clearcoatRoughness:0.07}),
   accent: new THREE.MeshPhysicalMaterial({color:0xc9ef1f, roughness:0.4, clearcoat:0.4}),
   glass: new THREE.MeshPhysicalMaterial({color:0x0c1422, roughness:0.08, metalness:0.3, transparent:true, opacity:0.92}),
   black: new THREE.MeshStandardMaterial({color:0x111214, roughness:0.75}),
@@ -654,21 +655,22 @@ const ZONES = [];
   const sideSpecs = [
     ['flanc-av', 'Flanc haut avant', 0.40, 0.34, 400, -0.97, 1.30, BOX_SIDE, 'Emplacement phare'],
     ['flanc-ar', 'Flanc haut arrière', 0.40, 0.34, 400, -1.39, 1.30, BOX_SIDE, 'Emplacement phare'],
-    ['porte', 'Portière', 0.62, 0.36, 400, 0.22, 0.76, CAB_SIDE, ''],
+    ['porte', 'Portière', 0.46, 0.32, 400, -0.03, 0.74, CAB_SIDE, ''],
+    ['orga', 'Portière avant', 0.36, 0.32, 0, 0.42, 0.74, CAB_SIDE, 'Réservé à l\'organisation', true],
     ['toitc', 'Côté du toit surélevé', 0.96, 0.055, 250, -1.12, 1.595, 0.73, ''],
     ['bas', 'Bas de caisse', 0.30, 0.34, 200, -0.60, 0.74, BOX_SIDE, ''],
     ['roue', 'Dessus de roue arrière', 0.62, 0.15, 200, -1.15, 0.855, BOX_SIDE, ''],
     ['aile', 'Aile avant', 0.34, 0.075, 100, 1.24, 0.757, CAB_SIDE, ''],
   ];
-  [[1,'d','droit','side'],[-1,'g','gauche','left']].forEach(([s,suf,lab,view]) => sideSpecs.forEach(([id,name,w,h,price,x,y,zs,tier]) =>
-    Z({id:id+'-'+suf, name, group:'Côté '+lab, w, h, price, tier, center:[x, y, s*(zs+0.006)], x:[s,0,0], y:[0,1,0], view})));
+  [[1,'d','droit','side'],[-1,'g','gauche','left']].forEach(([s,suf,lab,view]) => sideSpecs.forEach(([id,name,w,h,price,x,y,zs,tier,reserved]) =>
+    Z({id:id+'-'+suf, name, group:'Côté '+lab, w, h, price, tier, reserved, center:[x, y, s*(zs+0.006)], x:[s,0,0], y:[0,1,0], view})));
   // arrière
   const R = BOX_REAR-0.007, RX = [0,0,1], RY = [0,1,0];
   Z({id:'lunette', name:'Lunette arrière', group:'Arrière', w:0.86, h:0.28, price:600, tier:'Vu par tous ceux qui suivent', center:[R, 1.36, 0], x:RX, y:RY, view:'rear34'});
   Z({id:'arriere', name:'Bandeau de porte arrière', group:'Arrière', w:1.10, h:0.19, price:400, tier:'', center:[R, 1.06, 0], x:RX, y:RY, view:'rear34'});
   [[1,'droit','d'],[-1,'gauche','g']].forEach(([s,lab,suf]) => {
     Z({id:'hautar-'+suf, name:'Haut de toit arrière '+lab, group:'Arrière', w:0.48, h:0.055, price:300, tier:'', center:[-1.746, 1.598, s*0.27], x:RX, y:RY, view:'rear34'});
-    Z({id:'basar-'+suf, name:'Bas de porte arrière '+lab, group:'Arrière', w:0.30, h:0.24, price:150, tier:'', center:[R, 0.78, s*0.42], x:RX, y:RY, view:'rear34'});
+    Z({id:'basar-'+suf, name:'Bas de porte arrière '+lab, group:'Arrière', w:0.30, h:0.24, price:150, tier: s < 0 ? 'Réservé à l\'organisation' : '', reserved: s < 0, center:[R, 0.78, s*0.42], x:RX, y:RY, view:'rear34'});
   });
   // toit : quatre quarts
   [[-0.93,'avant'],[-1.41,'arrière']].forEach(([x,fa]) => [[1,'droit'],[-1,'gauche']].forEach(([s,lab]) =>
@@ -687,6 +689,11 @@ ZONES.forEach(z => {
   Object.assign(z, {canvas:c, tex, mesh:m, content:null, inPack:false});
   zoneMeshes.push(m);
 });
+
+// emplacements réservés à l'organisation : logo 4L Trophy
+const trophyImg = new Image();
+trophyImg.onload = () => ZONES.filter(z => z.reserved).forEach(z => { z.content = {img:trophyImg}; drawZone(z); });
+trophyImg.src = 'logo-4l-trophy.png';
 
 let showZones = false, selected = null, hovered = null;
 const pending = new Map();
@@ -774,13 +781,68 @@ const headlights = [1,-1].map(s => {
 const decorGroups = {};
 function mkGroup(id){ const g = new THREE.Group(); g.visible = false; scene.add(g); decorGroups[id] = g; return g; }
 
-// Studio
+// Garage : atelier sombre, plafond de néons hexagonaux, dalles hexagonales
+let garageEnv;
 {
   const g = mkGroup('studio');
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(60, 64), new THREE.MeshStandardMaterial({color:0xe8e4dc, roughness:0.85}));
-  floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; g.add(floor);
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(3.4, 64), new THREE.MeshStandardMaterial({color:0xd9d3c7, roughness:0.6}));
-  disc.rotation.x = -Math.PI/2; disc.position.y = 0.002; disc.receiveShadow = true; g.add(disc);
+  // lignes lumineuses : nid d'abeille au plafond et chevrons sur les murs latéraux
+  function buildLights(parent, mat, t, yOff){
+    const a = 1.2, r3 = Math.sqrt(3), segs = [];
+    for (let i=-5;i<=5;i++) for (let j=-3;j<=3;j++){
+      const cx = i*1.5*a, cz = j*r3*a + (i%2 ? r3*a/2 : 0);
+      if (Math.abs(cz) > 7.4) continue;
+      for (let k=0;k<3;k++){ // 3 arêtes par hexagone suffisent, les voisins fournissent les autres
+        const a0 = k*Math.PI/3, a1 = (k+1)*Math.PI/3;
+        segs.push([cx+a*Math.cos(a0), cz+a*Math.sin(a0), cx+a*Math.cos(a1), cz+a*Math.sin(a1)]);
+      }
+    }
+    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(a, t, t), mat, segs.length);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0,1,0), one = new THREE.Vector3(1,1,1);
+    segs.forEach(([x0,z0,x1,z1], n) => { q.setFromAxisAngle(Y, Math.atan2(-(z1-z0), x1-x0));
+      m.compose(new THREE.Vector3((x0+x1)/2, 5.2+yOff, (z0+z1)/2), q, one); im.setMatrixAt(n, m); });
+    parent.add(im);
+    [1,-1].forEach(s => [-7.5,-4.5,-1.5,1.5,4.5,7.5].forEach(x => [1,-1].forEach(u => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(t, 1.35, t), mat);
+      b.position.set(x-0.22, 2.3+u*0.62+yOff, s*8.9); b.rotation.z = -u*0.36; parent.add(b);
+    })));
+  }
+  const lightMat = new THREE.MeshBasicMaterial({color:0xffffff, fog:false});
+  buildLights(g, lightMat, 0.06, 0);
+  // murs et plafond
+  const room = new THREE.Mesh(new THREE.BoxGeometry(22, 5.6, 18), new THREE.MeshStandardMaterial({color:0x121214, roughness:0.85, side:THREE.BackSide}));
+  room.position.y = 2.79; room.receiveShadow = true; g.add(room);
+  // sol en dalles hexagonales noires à joints rouges
+  const s = 128, W = 3*s, H = Math.round(Math.sqrt(3)*s);
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  x.fillStyle = '#151517'; x.fillRect(0,0,W,H);
+  const hex = (cx, cy, r) => { x.beginPath(); for (let k=0;k<6;k++){ const a = k*Math.PI/3; x[k?'lineTo':'moveTo'](cx+r*Math.cos(a), cy+r*Math.sin(a)); } x.closePath(); x.stroke(); };
+  [[0,0],[W,0],[0,H],[W,H],[1.5*s,H/2]].forEach(([cx,cy]) => {
+    x.strokeStyle = '#2a2a2f'; x.lineWidth = 5; for (let r = s*0.86; r > 8; r -= s*0.13) hex(cx, cy, r);
+    x.strokeStyle = '#d5202a'; x.lineWidth = 6; hex(cx, cy, s);
+  });
+  const ft = new THREE.CanvasTexture(c); ft.colorSpace = THREE.SRGBColorSpace; ft.wrapS = ft.wrapT = THREE.RepeatWrapping;
+  ft.repeat.set(22/1.5, 18/0.866); ft.anisotropy = 8;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(22, 18), new THREE.MeshPhysicalMaterial({map:ft, roughness:0.45, metalness:0, specularIntensity:0.12}));
+  floor.rotation.x = -Math.PI/2; floor.position.y = 0.002; floor.receiveShadow = true; g.add(floor);
+  // enseigne de l'équipage sur le mur du fond
+  const sc = document.createElement('canvas'); sc.width = 1536; sc.height = 220; const sx = sc.getContext('2d');
+  const drawSign = () => { sx.clearRect(0,0,1536,220);
+  sx.font = '400 150px "Alfa Slab One", serif'; sx.textBaseline = 'middle';
+  const t1 = 'TANDEM DE LA VICTOIRE ', w1 = sx.measureText(t1).width, w2 = sx.measureText('435').width, x0 = (1536-w1-w2)/2;
+  sx.fillStyle = '#f2f2f2'; sx.fillText(t1, x0, 118); sx.fillStyle = '#d5202a'; sx.fillText('435', x0+w1, 118);
+  };
+  drawSign();
+  const st = new THREE.CanvasTexture(sc); st.colorSpace = THREE.SRGBColorSpace;
+  document.fonts.load('150px "Alfa Slab One"').then(() => { drawSign(); st.needsUpdate = true; }).catch(()=>{});
+  plane(8.4, 1.2, new THREE.MeshBasicMaterial({map:st, transparent:true, fog:false}), [-10.95, 2.9, 0], [0,0,-1], [0,1,0], g);
+  // carte d'environnement dédiée : ce sont ces néons qui se reflètent dans la carrosserie
+  const env = new THREE.Scene();
+  env.add(new THREE.Mesh(new THREE.BoxGeometry(22, 5.6, 18), new THREE.MeshBasicMaterial({color:0x08080a, side:THREE.BackSide})));
+  env.children[0].position.y = 1.8;
+  const hot = new THREE.MeshBasicMaterial({color:0xffffff}); hot.color.setScalar(14);
+  buildLights(env, hot, 0.12, -1.0);
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(22, 18), new THREE.MeshBasicMaterial({color:0x1a1213})); fl.rotation.x = -Math.PI/2; fl.position.y = -0.99; env.add(fl);
+  garageEnv = pmrem.fromScene(env, 0.01).texture;
 }
 // Désert
 {
@@ -880,8 +942,8 @@ function makeBanner(){
 }
 
 const DECORS = {
-  studio: {name:'Studio', desc:'Fond neutre, idéal pour présenter aux sponsors',
-    sky:[0xcfccc6, 0xf1eee8, 0xe8e4dc], fog:[0xece8e1, 18, 70], hemi:[0xffffff, 0x8a8478, 0.7], sun:[0xffffff, 2.0, [5,9,6]], env:0.55, exposure:0.95, night:false},
+  studio: {name:'Garage', desc:'Atelier sombre, néons hexagonaux : les reflets font le reste', garage:true,
+    sky:[0x050506, 0x0a0a0c, 0x0a0a0c], fog:[0x0a0a0c, 30, 90], hemi:[0xffffff, 0x2a2a30, 0.55], sun:[0xffffff, 1.1, [1.5,10,2.5]], env:1.15, exposure:1.05, night:false},
   desert: {name:'Désert marocain', desc:'Les dunes de Merzouga en fin de journée',
     sky:[0x4f86c6, 0xf6c88f, 0xd9a55f], fog:[0xf0c48e, 30, 150], hemi:[0xfff1d6, 0xb0773a, 0.6], sun:[0xffcf96, 3.2, [-9,4.5,-6]], env:0.7, exposure:1.05, night:false},
   bivouac: {name:'Bivouac de nuit', desc:'Feu de camp, tentes et phares allumés',
@@ -903,6 +965,7 @@ function setWarn(on){
 }
 function setDecor(id){
   currentDecor = id; const d = DECORS[id];
+  scene.environment = d.garage ? garageEnv : baseEnv;
   Object.entries(decorGroups).forEach(([k,g]) => g.visible = k === id);
   skyMat.uniforms.top.value.set(d.sky[0]); skyMat.uniforms.mid.value.set(d.sky[1]); skyMat.uniforms.bottom.value.set(d.sky[2]);
   scene.fog = new THREE.Fog(d.fog[0], d.fog[1], d.fog[2]);
@@ -941,10 +1004,8 @@ const LIVERIES = [
   {id:'equipage', name:'Équipage 435', desc:'Le badge de l\'équipage sur les flancs, bandeau au nom de l\'équipe', paint:0x1f36b4, accent:0xc9ef1f, apply:()=>{
     both('flanc-ar', {img:badgeImg});
     setContent('bandeau-d', {text:'LE TANDEM', color:'#ffffff', bg:'rgba(18,29,69,.92)'}); setContent('bandeau-g', {text:'DE LA VICTOIRE', color:'#ffffff', bg:'rgba(18,29,69,.92)'});
-    both('porte', {text:'435', color:'#121d45', bg:'#f4efe3'});
   }},
   {id:'rallye', name:'Bandes rallye', desc:'Deux bandes fluo du capot à la porte arrière', paint:0x1f36b4, accent:0xc9ef1f, stripes:true, apply:()=>{
-    both('porte', {text:'435', color:'#121d45', bg:'#c9ef1f'});
     setContent('bandeau-d', {text:'4L TROPHY', color:'#121d45', bg:'#c9ef1f'}); setContent('bandeau-g', {text:'2027', color:'#121d45', bg:'#c9ef1f'});
   }},
   {id:'sable', name:'Sable et or', desc:'Une teinte désert, accents bleu nuit, rappel du logo', paint:0xd8b779, accent:0x121d45, apply:()=>{
@@ -965,6 +1026,7 @@ function setLivery(id){
 let liveryMode = false;
 function setContent(id, content){
   const z = ZONES.find(z=>z.id===id);
+  if (z.reserved) return;
   if (z.content && !z.content.livery && liveryMode) return; // ne pas écraser un sponsor
   z.content = content ? {...content, livery: liveryMode} : null;
 }
@@ -1033,10 +1095,14 @@ function renderLists(){
     if (z.group !== grp){ grp = z.group; const h = document.createElement('h3'); h.textContent = grp; zoneList.appendChild(h); }
     const d = document.createElement('div'); d.dataset.id = z.id;
     d.className = 'zone' + (z === selected ? ' sel' : '') + (z.content && !z.content.livery ? ' taken' : '');
-    d.innerHTML = `<span class="dot"></span><span class="nm">${z.name}<small>${Math.round(z.w*100)} × ${Math.round(z.h*100)} cm${z.tier ? ' · ' + z.tier : ''}</small></span><span class="pr">${euros(z.price)}</span>`;
+    d.innerHTML = `<span class="dot"></span><span class="nm">${z.name}<small>${Math.round(z.w*100)} × ${Math.round(z.h*100)} cm${z.tier ? ' · ' + z.tier : ''}</small></span><span class="pr">${z.reserved ? 'Réservé' : euros(z.price)}</span>`;
     d.onclick = () => selectZone(z.id);
     zoneList.appendChild(d);
   });
+  if (selected && selected.reserved){
+    detail.innerHTML = `<h2 style="margin-top:0">${selected.name}</h2><p class="lead" style="margin:0">Emplacement réservé à l'organisation du 4L Trophy : son logo y est obligatoire.</p>`;
+    renderPack(); return;
+  }
   if (!selected){
     detail.innerHTML = `<p class="lead" style="margin:0">Sélectionne un emplacement dans la liste ou directement sur la 4L.</p>`;
   } else {
