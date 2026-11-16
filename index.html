@@ -110,7 +110,7 @@
   <button class="chip" id="rotateBtn">Rotation auto</button>
   <button class="chip" id="lightsBtn">Phares</button>
   <button class="chip" id="warnBtn">Warnings</button>
-  <button class="chip" id="zonesBtn">Afficher les emplacements</button>
+  <button class="chip on" id="zonesBtn">Afficher les emplacements</button>
   <button class="chip" id="shotBtn">Capture</button>
 </div>
 
@@ -696,7 +696,7 @@ const trophyImg = new Image();
 trophyImg.onload = () => ZONES.filter(z => z.reserved).forEach(z => { z.content = {img:trophyImg}; drawZone(z); });
 trophyImg.src = 'logo-4l-trophy.png';
 
-let showZones = false, selected = null, hovered = null;
+let showZones = true, selected = null, hovered = null;
 const pending = new Map();
 
 function drawZone(z){
@@ -824,16 +824,17 @@ let garageEnv;
   disc.position.y = -0.002; disc.receiveShadow = true; g.add(disc);
   const halo = new THREE.Mesh(new THREE.RingGeometry(2.7, 2.74, 96), new THREE.MeshBasicMaterial({color:0xffffff, fog:false}));
   halo.rotation.x = -Math.PI/2; halo.position.y = 0.006; g.add(halo);
-  // enseigne lumineuse de l'équipage sur le mur du fond
-  const sc = document.createElement('canvas'); sc.width = 1536; sc.height = 220; const sx = sc.getContext('2d');
-  const drawSign = () => { sx.clearRect(0,0,1536,220);
-    sx.font = '400 130px "Alfa Slab One", serif'; sx.textBaseline = 'middle'; sx.textAlign = 'center';
-    sx.fillStyle = '#f3d48a'; sx.fillText('TANDEM DE LA VICTOIRE', 768, 118);
-  };
-  drawSign();
-  const st = new THREE.CanvasTexture(sc); st.colorSpace = THREE.SRGBColorSpace;
-  document.fonts.load('130px "Alfa Slab One"').then(() => { drawSign(); st.needsUpdate = true; }).catch(()=>{});
-  plane(7.6, 1.09, new THREE.MeshBasicMaterial({map:st, transparent:true, fog:false}), [-RX/2+0.05, 2.3, 0], [0,0,-1], [0,1,0], g);
+  // médaillon de l'équipage en relief sur le mur du fond
+  {
+    const m = new THREE.Group(); m.position.set(-RX/2+0.02, 2.35, 0); m.rotation.z = -Math.PI/2; g.add(m); // axe du médaillon vers la salle
+    const R = 1.45, gold = new THREE.MeshStandardMaterial({color:0xe4b350, roughness:0.25, metalness:1});
+    const halo = new THREE.Mesh(new THREE.CylinderGeometry(R+0.16, R+0.16, 0.02, 96), new THREE.MeshBasicMaterial({color:0xffe2a6, fog:false})); halo.position.y = 0.01; m.add(halo);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(R, R+0.03, 0.22, 96), new THREE.MeshStandardMaterial({color:0x121d45, roughness:0.4, metalness:0.3})); body.position.y = 0.15; m.add(body);
+    [[R-0.02, 0.05, 0.26], [R*0.8, 0.018, 0.275]].forEach(([r, t, y]) => { const rim = new THREE.Mesh(new THREE.TorusGeometry(r, t, 12, 96), gold); rim.rotation.x = Math.PI/2; rim.position.y = y; m.add(rim); });
+    const tex = new THREE.TextureLoader().load('logo-badge.png'); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const face = orient(new THREE.Mesh(new THREE.CircleGeometry(R-0.04, 96), new THREE.MeshBasicMaterial({map:tex, fog:false})), [-RX/2+0.285, 2.35, 0], [0,0,-1], [0,1,0]);
+    g.add(face);
+  }
   // carte d'environnement dédiée : ce sont ces arcs qui se reflètent dans la carrosserie
   const env = new THREE.Scene();
   const eb = new THREE.Mesh(new THREE.BoxGeometry(RX, CEIL+1, RZ), new THREE.MeshBasicMaterial({color:0x0b0b0c, side:THREE.BackSide})); eb.position.y = CEIL/2-0.5; env.add(eb);
