@@ -218,8 +218,9 @@ function box(w,h,d,mat,x,y,z,parent){ const m = new THREE.Mesh(new THREE.BoxGeom
 
 /* ---------- Carrosserie ----------
    Repère : x vers l'avant, y vers le haut, z vers la droite (côté passager). Unités : mètres.
-   Cotes de référence R4 F4 : longueur 3,65 m, largeur 1,50 m, empattement 2,40 / 2,44 m. */
-const WHEEL_R = 0.30, WHEEL_Y = 0.30, AX_F = 1.17, AX_R = -1.25, ARCH_R = 0.39;
+   Cotes du plan R4 F4 : longueur 3,653 m, largeur 1,50 m, empattement 2,401 m,
+   porte-à-faux avant 0,528 m et arrière 0,678 m, hauteur de série 1,71 m. */
+const WHEEL_R = 0.30, WHEEL_Y = 0.30, AX_F = 1.27, AX_R = -1.15, ARCH_R = 0.39;
 const BEV = 0.04, BEVB = 0.05;
 M.glass = new THREE.MeshPhysicalMaterial({color:0x1a2530, roughness:0.05, metalness:0.2, transparent:true, opacity:0.42, side:THREE.DoubleSide, depthWrite:false});
 M.glassDark = new THREE.MeshPhysicalMaterial({color:0x0a1018, roughness:0.08, metalness:0.4});
@@ -302,90 +303,121 @@ function extrudeProfile(pts, width, arches, mat, bev, deform){
 }
 
 const CAB_W = 1.44, BOX_W = 1.50;
-// galbes : capot bombé en largeur, toit de caisse bombé
 const sstep = (x,a,b) => { const t = Math.min(1, Math.max(0, (x-a)/(b-a))); return t*t*(3-2*t); };
-const hoodDrop = (x,z) => sstep(x, 0.85, 1.15)*(0.03*(z/0.72)**2 + 0.06*sstep(Math.abs(z), 0.52, 0.72)**2); // bombé + épaules arrondies
+// ligne de capot : courbe plongeante du pied de pare-brise jusqu'au nez (cotes avant biseau)
+const HP0 = [1.54, 0.82], HC = [1.05, 0.98], HP1 = [0.62, 1.02];
+const hoodY = x => { const a = HP0[0]-2*HC[0]+HP1[0], b = 2*(HC[0]-HP0[0]), c = HP0[0]-x;
+  const t = Math.min(1, Math.max(0, (-b - Math.sqrt(Math.max(0, b*b-4*a*c)))/(2*a)));
+  return (1-t)*(1-t)*HP0[1] + 2*t*(1-t)*HC[1] + t*t*HP1[1]; };
+// bombé en largeur + épaules arrondies
+const hoodDrop = (x,z) => sstep(x, 0.66, 0.95)*(0.02*(z/0.72)**2 + 0.045*sstep(Math.abs(z), 0.52, 0.72)**2);
+const hoodSurf = (x,z) => hoodY(x) + 0.042 - hoodDrop(x,z);
+const capDrop = (y,z) => sstep(y, 1.50, 1.68)*(0.03*(z/0.73)**2 + 0.05*sstep(Math.abs(z), 0.45, 0.73)**2);
 // arrondit en plan les arêtes verticales arrière (rayon R) d'une pièce de demi-largeur h
 const roundRear = (v, xr, h, R) => { if (v[0] < xr + 0.001){ const dz = Math.min(R, Math.max(0, Math.abs(v[2]) - (h - R))); v[0] += R - Math.sqrt(R*R - dz*dz); } };
-const capDrop = z => 0.04*(z/0.73)**2;
-// avant + bas de cabine (cotes avant biseau)
-const cab = extrudeProfile([[1.62,0.48],[1.66,0.62],[1.65,0.86],[1.65,0.96,1.50,0.965],[0.80,1.02],[-0.12,1.02],[-0.12,0.48]], CAB_W, [AX_F], M.paint, BEV, v => { if (v[1] > 0.8 && v[0] > 0.8) v[1] -= hoodDrop(v[0], v[2]); });
+// morceau de surface posé sur le capot (stickers, bandes)
+function hoodPatch(x0, x1, zc, w, mat, lift = 0.006){
+  const nx = 16, nz = 12, pos = [], uv = [], idx = [];
+  for (let i=0;i<=nx;i++) for (let j=0;j<=nz;j++){
+    const x = x1 + (x0-x1)*i/nx, z = zc + w/2 - w*j/nz;
+    pos.push(x, hoodSurf(x,z)+lift, z); uv.push(j/nz, i/nx);
+  }
+  for (let i=0;i<nx;i++) for (let j=0;j<nz;j++){ const a = i*(nz+1)+j, b = a+1, c = a+nz+1, d = c+1; idx.push(a,b,c, b,d,c); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  g.setIndex(idx); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, mat); car.add(m); return m;
+}
+
+// avant + bas de cabine
+const cab = extrudeProfile([[1.665,0.48],[1.665,0.60],[1.655,0.72],[1.645,0.80,HP0[0],HP0[1]],[HC[0],HC[1],HP1[0],HP1[1]],[-0.26,1.02],[-0.26,0.48]], CAB_W, [AX_F], M.paint, BEV,
+  v => { if (v[0] > 0.62) v[1] -= hoodDrop(v[0], v[2])*sstep(v[1], 0.70, 0.82); });
 // caisse arrière, puis toit bombé surélevé posé dessus
-const boxBody = extrudeProfile([[-0.13,0.49],[-0.13,1.50],[-1.73,1.50],[-1.73,0.49]], BOX_W, [AX_R], M.paint, BEVB, v => roundRear(v, -1.73, 0.75, 0.12));
-const roofCap = extrudeProfile([[-0.20,1.50],[-0.20,1.67,-0.50,1.67],[-1.62,1.67],[-1.66,1.67,-1.66,1.60],[-1.66,1.50]], BOX_W-0.04, [], M.paint, 0.08, v => { if (v[1] > 1.58) v[1] -= capDrop(v[2]); roundRear(v, -1.66, 0.73, 0.12); });
+const boxBody = extrudeProfile([[-0.27,0.49],[-0.27,1.50],[-1.73,1.50],[-1.73,0.49]], BOX_W, [AX_R], M.paint, BEVB, v => roundRear(v, -1.73, 0.75, 0.12));
+const roofCap = extrudeProfile([[-0.39,1.50],[-0.39,1.70,-0.69,1.70],[-1.64,1.70],[-1.69,1.70,-1.69,1.62],[-1.69,1.50]], BOX_W-0.04, [], M.paint, 0.05,
+  v => { v[1] -= capDrop(v[1], v[2]); roundRear(v, -1.69, 0.73, 0.12); });
 
 const CAB_SIDE = CAB_W/2, BOX_SIDE = BOX_W/2, BOX_TOP = 1.75, BOX_REAR = -1.78, FRONT = 1.70, BELT = 1.06;
-{ const g = new THREE.Mesh(new THREE.ExtrudeGeometry(rrShape(1.64, BOX_W+0.03, 0.13), {depth:0.022, bevelEnabled:false, curveSegments:10}), M.paint);
-  g.rotation.x = -Math.PI/2; g.position.set(-0.98, 1.541, 0); add(g); } // gouttière
+{ const g = new THREE.Mesh(new THREE.ExtrudeGeometry(rrShape(1.50, BOX_W+0.03, 0.13), {depth:0.022, bevelEnabled:false, curveSegments:10}), M.paint);
+  g.rotation.x = -Math.PI/2; g.position.set(-1.05, 1.541, 0); add(g); } // gouttière
 
 /* ---------- Cabine vitrée ---------- */
-const HW_B = 0.695, HW_T = 0.61, WS_TOP = [0.535, 1.47], WSB = 0.67, WST = 0.585;
-rbox(0.76, 0.07, HW_T*2+0.05, 0.03, M.paint, 0.17, 1.488, 0); // pavillon
+const HW_B = 0.695, HW_T = 0.61, WS_BASE = 0.62, WS_TOP = [0.355, 1.47], WSB = 0.67, WST = 0.585;
+rbox(0.70, 0.10, HW_T*2+0.05, 0.05, M.paint, 0.02, 1.472, 0); // pavillon
 [1,-1].forEach(s => {
-  beam([0.805, BELT-0.03, s*HW_B], [0.54, 1.48, s*HW_T], 0.055, 0.05, M.paint); // montant de pare-brise
+  beam([WS_BASE+0.005, BELT-0.03, s*HW_B], [0.36, 1.48, s*HW_T], 0.055, 0.05, M.paint); // montant de pare-brise
   // vitre de porte (coulissante, avec son montant central)
-  quad([0.765, BELT, s*HW_B], [-0.18, BELT, s*HW_B], [-0.18, 1.465, s*(HW_T+0.004)], [0.525, 1.465, s*(HW_T+0.004)], M.glass);
-  tube([0.28, BELT, s*(HW_B+0.003)], [0.28, 1.46, s*(HW_T+0.006)], 0.008, car, M.black);
-  tube([0.76, BELT+0.006, s*(HW_B+0.004)], [-0.17, BELT+0.006, s*(HW_B+0.004)], 0.01, car, M.black);
-  tube([0.52, 1.458, s*(HW_T+0.008)], [-0.17, 1.458, s*(HW_T+0.008)], 0.009, car, M.black);
-  tube([0.80, BELT, s*WSB], [WS_TOP[0], WS_TOP[1], s*WST], 0.011, car, M.black); // joint de pare-brise
+  quad([0.585, BELT, s*HW_B], [-0.31, BELT, s*HW_B], [-0.31, 1.465, s*(HW_T+0.004)], [0.345, 1.465, s*(HW_T+0.004)], M.glass);
+  tube([0.12, BELT, s*(HW_B+0.003)], [0.12, 1.46, s*(HW_T+0.006)], 0.008, car, M.black);
+  tube([0.58, BELT+0.006, s*(HW_B+0.004)], [-0.30, BELT+0.006, s*(HW_B+0.004)], 0.01, car, M.black);
+  tube([0.34, 1.458, s*(HW_T+0.008)], [-0.30, 1.458, s*(HW_T+0.008)], 0.009, car, M.black);
   // rétroviseur
-  tube([0.70, 1.09, s*0.71], [0.72, 1.14, s*0.83], 0.008, car, M.black);
-  rbox(0.03, 0.11, 0.15, 0.012, M.black, 0.72, 1.16, s*0.87);
-  // poignée, charnières, joints de porte et de capot, répétiteur
-  rbox(0.11, 0.022, 0.025, 0.008, M.black, -0.03, 0.985, s*(CAB_SIDE+0.012));
-  [0.62, 0.93].forEach(y => tube([0.757, y-0.035, s*(CAB_SIDE+0.01)], [0.757, y+0.035, s*(CAB_SIDE+0.01)], 0.011, car, M.paint));
-  box(0.008, 0.55, 0.004, M.seam, 0.75, 0.775, s*(CAB_SIDE+0.002));
-  box(0.008, 0.55, 0.004, M.seam, -0.15, 0.775, s*(CAB_SIDE+0.002));
-  box(0.90, 0.006, 0.004, M.seam, 0.30, 0.535, s*(CAB_SIDE+0.002));
-  box(0.86, 0.008, 0.004, M.seam, 1.19, 0.84, s*(CAB_SIDE+0.002));
-  rbox(0.05, 0.025, 0.012, 0.005, M.orange, 1.0, 0.79, s*(CAB_SIDE+0.004));
-  tube([0.86, 1.005+0.64*0.0786-hoodDrop(0.86,0.30), s*0.30], [1.50, 1.005-hoodDrop(1.5,0.20), s*0.20], 0.009, car, M.paint); // nervures de capot
-  tube([0.74, 0.955, s*(CAB_SIDE+0.002)], [-0.14, 0.955, s*(CAB_SIDE+0.002)], 0.007, car, M.paint); // ligne de caisse
-  tube([0.55, 1.505, s*(HW_T+0.03)], [-0.18, 1.505, s*(HW_T+0.03)], 0.01, car, M.paint); // gouttière de pavillon
+  tube([0.52, 1.09, s*0.71], [0.54, 1.14, s*0.83], 0.008, car, M.black);
+  rbox(0.03, 0.11, 0.15, 0.012, M.black, 0.54, 1.16, s*0.87);
+  // poignée, charnières, joints de porte, répétiteur, ligne de caisse
+  rbox(0.11, 0.022, 0.025, 0.008, M.black, -0.17, 0.985, s*(CAB_SIDE+0.012));
+  [[0.867, 0.62], [0.703, 0.93]].forEach(([x,y]) => tube([x+0.02, y-0.035, s*(CAB_SIDE+0.01)], [x-0.016, y+0.035, s*(CAB_SIDE+0.01)], 0.011, car, M.paint));
+  tube([0.93, 0.50, s*(CAB_SIDE+0.001)], [0.64, 1.05, s*(CAB_SIDE+0.001)], 0.004, car, M.seam);
+  box(0.008, 0.55, 0.004, M.seam, -0.29, 0.775, s*(CAB_SIDE+0.002));
+  box(1.2, 0.006, 0.004, M.seam, 0.31, 0.535, s*(CAB_SIDE+0.002));
+  rbox(0.05, 0.025, 0.012, 0.005, M.orange, 1.02, 0.80, s*(CAB_SIDE+0.004));
+  tube([0.66, 0.955, s*(CAB_SIDE+0.002)], [-0.28, 0.955, s*(CAB_SIDE+0.002)], 0.007, car, M.paint);
+  tube([0.37, 1.515, s*(HW_T+0.03)], [-0.31, 1.515, s*(HW_T+0.03)], 0.01, car, M.paint); // gouttière de pavillon
+  // nervures de capot, posées sur la courbe
+  const xs = [0.68, 0.92, 1.17, 1.42];
+  for (let i=0;i<3;i++){ const za = 0.30 - 0.10*i/3, zb = 0.30 - 0.10*(i+1)/3;
+    tube([xs[i], hoodSurf(xs[i], za)+0.001, s*za], [xs[i+1], hoodSurf(xs[i+1], zb)+0.001, s*zb], 0.009, car, M.paint); }
 });
-quad([0.80, BELT, WSB], [0.80, BELT, -WSB], [WS_TOP[0], WS_TOP[1], -WST], [WS_TOP[0], WS_TOP[1], WST], M.glass); // pare-brise
-tube([0.80, BELT, -WSB], [0.80, BELT, WSB], 0.011, car, M.black);
-tube([WS_TOP[0], WS_TOP[1], -WST], [WS_TOP[0], WS_TOP[1], WST], 0.011, car, M.black);
-box(0.07, 0.008, 1.05, M.black, 0.87, 1.058, 0); // grille d'auvent
-[-0.42, 0.02].forEach(z => tube([0.818, 1.082, z], [0.688, 1.272, z+0.28], 0.007, car, M.black)); // essuie-glaces
+{ // pare-brise à coins supérieurs arrondis, entourage peint et joint
+  const wd = new THREE.Vector2(WS_TOP[0]-WS_BASE, WS_TOP[1]-BELT), L = wd.length(); wd.normalize();
+  const n = [wd.y, -wd.x];
+  const wsShape = (off, S = new THREE.Shape(), y0 = -off) => { const b = WSB+off, t = WST+off, top = L+off, r = 0.10+off;
+    const px = t + (b-t)*r/top;
+    S.moveTo(-b, y0); S.lineTo(b, y0); S.lineTo(px, top-r); S.quadraticCurveTo(t, top, t-r, top);
+    S.lineTo(-(t-r), top); S.quadraticCurveTo(-t, top, -px, top-r); S.closePath(); return S; };
+  const mk = (shape, mat, d) => { const m = orient(new THREE.Mesh(new THREE.ShapeGeometry(shape, 10), mat), [WS_BASE+n[0]*d, BELT+n[1]*d, 0], [0,0,-1], [wd.x, wd.y, 0]); car.add(m); return m; };
+  mk(wsShape(0), M.glass, 0).renderOrder = 1;
+  const surround = wsShape(0.03, new THREE.Shape(), -0.012); surround.holes.push(wsShape(0.012, new THREE.Path())); mk(surround, M.paint, -0.003);
+  const seal = wsShape(0.016); seal.holes.push(wsShape(0, new THREE.Path())); mk(seal, M.black, 0.002);
+}
+box(0.07, 0.008, 1.05, M.black, 0.69, 1.058, 0); // grille d'auvent
+[-0.42, 0.02].forEach(z => tube([0.638, 1.082, z], [0.508, 1.272, z+0.28], 0.007, car, M.black)); // essuie-glaces
 
 // intérieur
-box(0.94, 0.012, 1.36, M.interior, 0.31, BELT+0.004, 0);
-rbox(0.16, 0.08, 1.26, 0.03, M.interior, 0.69, BELT+0.03, 0);
-rbox(0.02, 0.05, 0.18, 0.008, M.interior, 0.50, 1.42, 0);
-tube([0.66, 1.12, -0.05], [0.56, 1.16, -0.05], 0.008, car, M.interior); // levier de vitesses au tableau de bord
+box(0.90, 0.012, 1.36, M.interior, 0.15, BELT+0.004, 0);
+rbox(0.16, 0.08, 1.26, 0.03, M.interior, 0.51, BELT+0.03, 0);
+rbox(0.02, 0.05, 0.18, 0.008, M.interior, 0.32, 1.42, 0);
+tube([0.48, 1.12, -0.05], [0.38, 1.16, -0.05], 0.008, car, M.interior); // levier de vitesses au tableau de bord
 [1,-1].forEach(s => {
-  const back = rbox(0.12, 0.42, 0.46, 0.04, M.seat, 0.02, 1.20, s*0.34); back.rotation.z = 0.1;
-  rbox(0.08, 0.12, 0.24, 0.03, M.seat, -0.03, 1.385, s*0.34);
+  const back = rbox(0.12, 0.42, 0.46, 0.04, M.seat, -0.14, 1.20, s*0.34); back.rotation.z = 0.1;
+  rbox(0.08, 0.12, 0.24, 0.03, M.seat, -0.19, 1.385, s*0.34);
 });
 {
-  const g = new THREE.Group(); g.position.set(0.50, 1.17, -0.35); g.rotation.z = 0.45;
+  const g = new THREE.Group(); g.position.set(0.32, 1.17, -0.35); g.rotation.z = 0.45;
   const t = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.013, 8, 28), M.interior); t.rotation.y = Math.PI/2; g.add(t);
   car.add(g);
-  tube([0.50, 1.17, -0.35], [0.68, 1.09, -0.35], 0.014, car, M.interior);
+  tube([0.32, 1.17, -0.35], [0.50, 1.09, -0.35], 0.014, car, M.interior);
 }
 
 /* ---------- Caisse : vitres, emboutis, porte arrière ---------- */
 [1,-1].forEach(s => {
   const z = s*BOX_SIDE, X = [s,0,0], Y = [0,1,0];
-  rplane(0.31, 0.44, 0.06, M.black, [-0.40, 1.30, z + s*0.002], X, Y);
-  rplane(0.26, 0.39, 0.05, M.glassDark, [-0.40, 1.30, z + s*0.004], X, Y);
-  rplane(1.02, 0.44, 0.06, M.seam, [-1.12, 1.28, z + s*0.002], X, Y, 0.01); // panneau embouti
-  
+  rplane(0.34, 0.43, 0.07, M.black, [-0.55, 1.30, z + s*0.002], X, Y);
+  rplane(0.29, 0.38, 0.055, M.glassDark, [-0.55, 1.30, z + s*0.004], X, Y);
+  rplane(0.88, 0.42, 0.06, M.seam, [-1.18, 1.30, z + s*0.002], X, Y, 0.01); // panneau embouti
+  [-0.80, -1.15, -1.50].forEach(xc => rplane(0.28, 0.045, 0.02, M.seam, [xc, 1.595, s*0.7312], X, Y, 0.007)); // emboutis du toit
+  tube([-0.33, 1.0, s*(BOX_SIDE+0.002)], [-1.60, 1.0, s*(BOX_SIDE+0.002)], 0.006, car, M.paint);
 });
 { const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 20), M.black); cap.rotation.x = Math.PI/2; cap.position.set(-1.62, 0.90, BOX_SIDE+0.008); add(cap); }
-for (let i=0;i<5;i++){ const z = -0.4 + i*0.2; rbox(1.0, 0.016, 0.06, 0.007, M.paint, -1.08, BOX_TOP+0.002-capDrop(z), z); } // nervures de toit
-[1,-1].forEach(s => [-0.55, -0.98, -1.41].forEach(xc => rplane(0.36, 0.07, 0.03, M.seam, [xc, 1.615, s*0.7312], [s,0,0], [0,1,0], 0.008))); // emboutis du toit
-rplane(1.0, 0.07, 0.03, M.seam, [-1.743, 1.60, 0], [0,0,1], [0,1,0], 0.008); // girafon
-[1,-1].forEach(s => tube([-0.19, 1.0, s*(BOX_SIDE+0.002)], [-1.60, 1.0, s*(BOX_SIDE+0.002)], 0.006, car, M.paint));
+for (let i=0;i<5;i++){ const z = -0.4 + i*0.2; rbox(0.9, 0.016, 0.06, 0.007, M.paint, -1.17, BOX_TOP+0.002-capDrop(1.75, z), z); } // nervures de toit
+rplane(1.0, 0.06, 0.03, M.seam, [-1.743, 1.598, 0], [0,0,1], [0,1,0], 0.008); // girafon
 {
   const x = BOX_REAR, X = [0,0,1], Y = [0,1,0];
   rplane(1.30, 1.02, 0.05, M.seam, [x-0.002, 1.03, 0], X, Y, 0.008);       // porte arrière
   rplane(0.98, 0.40, 0.07, M.black, [x-0.003, 1.36, 0], X, Y);             // lunette
   rplane(0.90, 0.32, 0.05, M.glassDark, [x-0.005, 1.36, 0], X, Y);
   rplane(0.46, 0.30, 0.03, M.seam, [x-0.002, 0.78, 0], X, Y, 0.008);       // logement de plaque
-  rbox(0.03, 0.025, 0.14, 0.01, M.black, x-0.015, 0.945, 0);                 // poignée
+  rbox(0.03, 0.025, 0.14, 0.01, M.black, x-0.015, 0.945, 0);               // poignée
   rbox(0.03, 0.15, 0.03, 0.01, M.black, x-0.015, 1.0, 0.60);
   [0.70, 1.40].forEach(y => rbox(0.03, 0.08, 0.04, 0.01, M.paint, x-0.008, y, -0.67)); // charnières
   box(0.008, 0.035, 1.28, M.accent, x-0.004, 0.50, 0);                     // liseré bas de porte
@@ -412,41 +444,42 @@ function makeGrille(){
   x.fillStyle = '#17181b'; for (let i=40;i<512;i+=60) x.fillRect(i,0,5,128);
   return c;
 }
+const GR_Y = 0.685;
 {
-  box(0.02, 0.27, 1.27, M.black, FRONT+0.002, 0.79, 0);
+  box(0.02, 0.22, 1.23, M.black, FRONT+0.002, GR_Y, 0);
   const gr = new THREE.CanvasTexture(makeGrille()); gr.colorSpace = THREE.SRGBColorSpace;
-  plane(0.80, 0.19, new THREE.MeshStandardMaterial({map:gr, roughness:0.6}), [FRONT+0.014, 0.79, 0], [0,0,-1], [0,1,0]);
-  // entourage de calandre fluo
-  const S = rrShape(1.31, 0.30, 0.07); S.holes.push(rrShape(1.28, 0.27, 0.055, new THREE.Path()));
+  plane(0.80, 0.19, new THREE.MeshStandardMaterial({map:gr, roughness:0.6}), [FRONT+0.014, GR_Y, 0], [0,0,-1], [0,1,0]);
+  // entourage de calandre : liseré fluo
+  const S = rrShape(1.27, 0.25, 0.07); S.holes.push(rrShape(1.24, 0.22, 0.055, new THREE.Path()));
   const fr = new THREE.Mesh(new THREE.ExtrudeGeometry(S, {depth:0.03, bevelEnabled:false, curveSegments:8}), M.accent);
-  fr.rotation.y = Math.PI/2; fr.position.set(FRONT-0.006, 0.79, 0); add(fr);
+  fr.rotation.y = Math.PI/2; fr.position.set(FRONT-0.006, GR_Y, 0); add(fr);
   [1,-1].forEach(s => {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.083, 0.011, 10, 32), M.chrome);
-    ring.rotation.y = Math.PI/2; ring.position.set(FRONT+0.02, 0.79, s*0.51); add(ring);
+    ring.rotation.y = Math.PI/2; ring.position.set(FRONT+0.02, GR_Y, s*0.50); add(ring);
     const lens = new THREE.Mesh(new THREE.SphereGeometry(0.08, 24, 14), M.lens);
-    lens.scale.x = 0.28; lens.position.set(FRONT+0.016, 0.79, s*0.51); add(lens);
-    rbox(0.03, 0.045, 0.09, 0.012, M.orange, FRONT+0.002, 0.60, s*0.56); rbox(0.03, 0.045, 0.05, 0.012, M.lens, FRONT+0.002, 0.60, s*0.49);
+    lens.scale.x = 0.28; lens.position.set(FRONT+0.016, GR_Y, s*0.50); add(lens);
+    rbox(0.03, 0.04, 0.09, 0.012, M.orange, FRONT+0.002, 0.52, s*0.56); rbox(0.03, 0.04, 0.05, 0.012, M.lens, FRONT+0.002, 0.52, s*0.49);
   });
 }
 
 /* ---------- Pare-chocs avant et liserés fluo ---------- */
 { // pare-chocs avant tubulaire sur pattes en V
-  const bx = FRONT+0.10, by = 0.43;
+  const bx = FRONT+0.10, by = 0.42;
   tube([bx, by, -0.76], [bx, by, 0.76], 0.03, car, M.accent);
   [1,-1].forEach(s => {
     const sp = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 10), M.accent); sp.position.set(bx, by, s*0.76); add(sp);
-    tube([bx, by, s*0.37], [FRONT-0.02, 0.50, s*0.30], 0.014, car, M.accent);
-    tube([bx, by, s*0.23], [FRONT-0.02, 0.50, s*0.30], 0.014, car, M.accent);
+    tube([bx, by, s*0.37], [FRONT-0.02, 0.47, s*0.30], 0.014, car, M.accent);
+    tube([bx, by, s*0.23], [FRONT-0.02, 0.47, s*0.30], 0.014, car, M.accent);
   });
 }
 [1,-1].forEach(s => {
   const zc = s*(CAB_SIDE+0.004), zb = s*(BOX_SIDE+0.004);
-  box(0.90, 0.035, 0.008, M.accent, 0.30, 0.50, zc);     // bas de caisse cabine
-  box(0.68, 0.035, 0.008, M.accent, -0.52, 0.50, zb);    // bas de caisse, avant de l'arche
-  box(0.06, 0.035, 0.008, M.accent, -1.635, 0.50, zb);    // après l'arche
-  box(1.39, 0.03, 0.008, M.accent, -0.945, 0.98, zb);    // liseré de ceinture
-  box(0.03, 0.13, 0.008, M.accent, -0.265, 0.93, zb);    // amorce avant
-  if (s < 0) box(0.03, 0.16, 0.008, M.accent, -1.625, 0.915, zb);   // retombée devant le feu
+  box(1.22, 0.035, 0.008, M.accent, 0.31, 0.50, zc);     // bas de caisse cabine
+  box(0.49, 0.035, 0.008, M.accent, -0.565, 0.50, zb);   // bas de caisse, avant de l'arche
+  box(0.15, 0.035, 0.008, M.accent, -1.565, 0.50, zb);   // après l'arche
+  box(1.25, 0.03, 0.008, M.accent, -1.015, 0.98, zb);    // liseré de ceinture
+  box(0.03, 0.13, 0.008, M.accent, -0.405, 0.93, zb);    // amorce avant
+  if (s < 0) box(0.03, 0.16, 0.008, M.accent, -1.625, 0.915, zb); // retombée devant le feu
   const ring = new THREE.Mesh(new THREE.RingGeometry(ARCH_R+0.02, ARCH_R+0.055, 40, 1, 0.42, Math.PI-0.84), M.accent);
   ring.position.set(AX_R, WHEEL_Y, zb); car.add(ring);
   // lèvres d'ailes
@@ -475,7 +508,7 @@ function makePlate(t){
 }
 const plateTex = new THREE.CanvasTexture(makePlate('TDLV · 435')); plateTex.colorSpace = THREE.SRGBColorSpace;
 const plateMat = new THREE.MeshStandardMaterial({map:plateTex, roughness:0.4});
-plane(0.50, 0.105, plateMat, [FRONT+0.133, 0.43, 0], [0,0,-1], [0,1,0]);
+plane(0.50, 0.105, plateMat, [FRONT+0.133, 0.42, 0], [0,0,-1], [0,1,0]);
 { // plaque arrière carrée, sur deux lignes
   const c = document.createElement('canvas'); c.width = 300; c.height = 220; const x = c.getContext('2d');
   x.fillStyle = '#f7f7f2'; x.fillRect(0,0,300,220); x.strokeStyle = '#111'; x.lineWidth = 6; x.strokeRect(3,3,294,214);
@@ -536,12 +569,12 @@ const TRACK = 0.62;
 }));
 
 /* ---------- Galerie de toit ---------- */
-const RACK_Y = 1.79, RACK_X0 = -1.72, RACK_X1 = 0.30, RACK_Z = 0.64, RAIL = 0.045;
+const RACK_Y = 1.79, RACK_X0 = -1.72, RACK_X1 = 0.18, RACK_Z = 0.64, RAIL = 0.045;
 [1,-1].forEach(s => {
   tube([RACK_X0, RACK_Y, s*RACK_Z], [RACK_X1, RACK_Y, s*RACK_Z], 0.014);
   tube([RACK_X0, RACK_Y+RAIL, s*RACK_Z], [RACK_X1, RACK_Y+RAIL, s*RACK_Z], 0.011);
-  [-1.62, -1.0, -0.42].forEach(x => tube([x, 1.55, s*(BOX_SIDE+0.01)], [x, RACK_Y, s*RACK_Z], 0.012));
-  tube([0.22, 1.51, s*0.60], [0.26, RACK_Y, s*RACK_Z], 0.012);
+  [-1.62, -1.05, -0.52].forEach(x => tube([x, 1.55, s*(BOX_SIDE+0.01)], [x, RACK_Y, s*RACK_Z], 0.012));
+  tube([0.08, 1.52, s*0.60], [0.12, RACK_Y, s*RACK_Z], 0.012);
   for (let i=0;i<=6;i++){ const x = RACK_X0 + i*(RACK_X1-RACK_X0)/6; tube([x, RACK_Y, s*RACK_Z], [x, RACK_Y+RAIL, s*RACK_Z], 0.008); }
 });
 for (let i=0;i<=8;i++){ const x = RACK_X0 + i*(RACK_X1-RACK_X0)/8; tube([x, RACK_Y, -RACK_Z], [x, RACK_Y, RACK_Z], 0.011); }
@@ -568,7 +601,7 @@ function buildTandem(){
   return g;
 }
 const extras = {
-  spare: (() => { const g = buildWheel(); g.rotation.x = -Math.PI/2; g.position.set(-0.12, RACK_Y+0.1, 0.12); rack.add(g); return g; })(),
+  spare: (() => { const g = buildWheel(); g.rotation.x = -Math.PI/2; g.position.set(-0.22, RACK_Y+0.1, 0.12); rack.add(g); return g; })(),
   jerry: (() => { const g = new THREE.Group();
     const jm = new THREE.MeshStandardMaterial({color:0x2f5d2a, roughness:0.6});
     [-0.02, 0.34].forEach(z => { rbox(0.44, 0.15, 0.32, 0.03, jm, -1.45, RACK_Y+0.09, z, g); rbox(0.06, 0.04, 0.06, 0.01, M.black, -1.26, RACK_Y+0.17, z, g); });
@@ -594,44 +627,52 @@ const extras = {
     box(0.004, 0.032, 0.86, M.lens, RACK_X1+0.062, RACK_Y+0.075, 0, g);
     rack.add(g); return g; })(),
   spots: (() => { const g = new THREE.Group();
-    tube([FRONT+0.10, 0.585, -0.34], [FRONT+0.10, 0.585, 0.34], 0.014, g, M.black);
+    tube([FRONT+0.10, 0.50, -0.34], [FRONT+0.10, 0.50, 0.34], 0.014, g, M.black);
     [-0.22, 0.22].forEach(z => {
-      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.07, 0.07, 24), M.black); b.rotation.z = -Math.PI/2; b.position.set(FRONT+0.10, 0.68, z); add(b, g);
-      const r = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.008, 8, 28), M.chrome); r.rotation.y = Math.PI/2; r.position.set(FRONT+0.136, 0.68, z); g.add(r);
-      const l = new THREE.Mesh(new THREE.SphereGeometry(0.076, 20, 12), M.lens); l.scale.x = 0.2; l.position.set(FRONT+0.134, 0.68, z); g.add(l);
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.07, 0.07, 24), M.black); b.rotation.z = -Math.PI/2; b.position.set(FRONT+0.10, 0.60, z); add(b, g);
+      const r = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.008, 8, 28), M.chrome); r.rotation.y = Math.PI/2; r.position.set(FRONT+0.136, 0.60, z); g.add(r);
+      const l = new THREE.Mesh(new THREE.SphereGeometry(0.076, 20, 12), M.lens); l.scale.x = 0.2; l.position.set(FRONT+0.134, 0.60, z); g.add(l);
     });
     car.add(g); return g; })(),
 };
 Object.values(extras).forEach(g => g.visible = false);
 
 /* ---------- Emplacements sponsors ---------- */
-const ZONES = [
-  {id:'flanc-d', name:'Flanc de caisse droit', w:0.96, h:0.40, price:600, tier:'Emplacement phare',
-    center:[-1.12, 1.28, BOX_SIDE+0.006], x:[1,0,0], y:[0,1,0], view:'side'},
-  {id:'flanc-g', name:'Flanc de caisse gauche', w:0.96, h:0.40, price:600, tier:'Emplacement phare',
-    center:[-1.12, 1.28, -(BOX_SIDE+0.006)], x:[-1,0,0], y:[0,1,0], view:'left'},
-  {id:'capot', name:'Capot', w:1.00, h:0.60, price:500, tier:'Vu de face, sur toutes les photos',
-    hood:true, view:'front34'},
-  {id:'arriere', name:'Porte arrière', w:1.10, h:0.19, price:300, tier:'Vu par tous ceux qui suivent',
-    center:[BOX_REAR-0.006, 1.06, 0], x:[0,0,1], y:[0,1,0], view:'rear34'},
-  {id:'bandeau', name:'Bandeau de pare-brise', w:1.08, h:0.10, price:300, tier:'Le classique du rallye',
-    windshield:true, view:'front34'},
-  {id:'porte-d', name:'Portière passager', w:0.62, h:0.36, price:250, tier:'',
-    center:[0.33, 0.76, CAB_SIDE+0.005], x:[1,0,0], y:[0,1,0], view:'side'},
-  {id:'porte-g', name:'Portière conducteur', w:0.62, h:0.36, price:250, tier:'',
-    center:[0.33, 0.76, -(CAB_SIDE+0.005)], x:[-1,0,0], y:[0,1,0], view:'left'},
-  {id:'toit', name:'Toit (vue drone)', w:1.20, h:1.10, price:200, tier:'Pour les images aériennes',
-    center:[-1.07, BOX_TOP+0.02, 0], x:[0,0,1], y:[1,0,0], view:'top'},
-];
-// géométrie du capot et du bandeau
+const ZONES = [];
 {
-  const a = new THREE.Vector2(1.50, 0.965+BEV), b = new THREE.Vector2(0.80, 1.02+BEV);
-  const d = b.clone().sub(a).normalize(), mid = a.clone().lerp(b, 0.5);
-  const z = ZONES.find(z=>z.hood); z.center = [mid.x, mid.y+0.006, 0]; z.x = [0,0,-1]; z.y = [d.x, d.y, 0];
-  const wb = new THREE.Vector2(0.80, BELT), wt = new THREE.Vector2(WS_TOP[0], WS_TOP[1]);
-  const wd = wt.clone().sub(wb).normalize(), n = new THREE.Vector2(wd.y, -wd.x);
-  const c = wt.clone().addScaledVector(wd, -0.075).addScaledVector(n, 0.012);
-  const zw = ZONES.find(z=>z.windshield); zw.center = [c.x, c.y, 0]; zw.x = [0,0,-1]; zw.y = [wd.x, wd.y, 0];
+  const Z = (o) => ZONES.push(o);
+  // avant
+  Z({id:'capot', name:'Capot', group:'Avant', w:1.00, h:0.66, price:300, tier:'Vu de face, sur toutes les photos', hood:[0.74, 1.40], view:'front34'});
+  {
+    const wb = new THREE.Vector2(WS_BASE, BELT), wt = new THREE.Vector2(WS_TOP[0], WS_TOP[1]);
+    const wd = wt.clone().sub(wb).normalize(), n = new THREE.Vector2(wd.y, -wd.x);
+    const c = wt.clone().addScaledVector(wd, -0.075).addScaledVector(n, 0.012);
+    [[1,'d','droit'],[-1,'g','gauche']].forEach(([s,suf,lab]) => Z({id:'bandeau-'+suf, name:'Bandeau de pare-brise '+lab, group:'Avant', w:0.52, h:0.10, price:200, tier:'Le classique du rallye',
+      center:[c.x, c.y, s*0.27], x:[0,0,-1], y:[wd.x, wd.y, 0], view:'front34'}));
+  }
+  // côtés
+  const sideSpecs = [
+    ['flanc-av', 'Flanc haut avant', 0.40, 0.34, 400, -0.97, 1.30, BOX_SIDE, 'Emplacement phare'],
+    ['flanc-ar', 'Flanc haut arrière', 0.40, 0.34, 400, -1.39, 1.30, BOX_SIDE, 'Emplacement phare'],
+    ['porte', 'Portière', 0.62, 0.36, 400, 0.22, 0.76, CAB_SIDE, ''],
+    ['toitc', 'Côté du toit surélevé', 0.96, 0.055, 250, -1.12, 1.595, 0.73, ''],
+    ['bas', 'Bas de caisse', 0.30, 0.34, 200, -0.60, 0.74, BOX_SIDE, ''],
+    ['roue', 'Dessus de roue arrière', 0.62, 0.15, 200, -1.15, 0.855, BOX_SIDE, ''],
+    ['aile', 'Aile avant', 0.34, 0.075, 100, 1.24, 0.757, CAB_SIDE, ''],
+  ];
+  [[1,'d','droit','side'],[-1,'g','gauche','left']].forEach(([s,suf,lab,view]) => sideSpecs.forEach(([id,name,w,h,price,x,y,zs,tier]) =>
+    Z({id:id+'-'+suf, name, group:'Côté '+lab, w, h, price, tier, center:[x, y, s*(zs+0.006)], x:[s,0,0], y:[0,1,0], view})));
+  // arrière
+  const R = BOX_REAR-0.007, RX = [0,0,1], RY = [0,1,0];
+  Z({id:'lunette', name:'Lunette arrière', group:'Arrière', w:0.86, h:0.28, price:600, tier:'Vu par tous ceux qui suivent', center:[R, 1.36, 0], x:RX, y:RY, view:'rear34'});
+  Z({id:'arriere', name:'Bandeau de porte arrière', group:'Arrière', w:1.10, h:0.19, price:400, tier:'', center:[R, 1.06, 0], x:RX, y:RY, view:'rear34'});
+  [[1,'droit','d'],[-1,'gauche','g']].forEach(([s,lab,suf]) => {
+    Z({id:'hautar-'+suf, name:'Haut de toit arrière '+lab, group:'Arrière', w:0.48, h:0.055, price:300, tier:'', center:[-1.746, 1.598, s*0.27], x:RX, y:RY, view:'rear34'});
+    Z({id:'basar-'+suf, name:'Bas de porte arrière '+lab, group:'Arrière', w:0.30, h:0.24, price:150, tier:'', center:[R, 0.78, s*0.42], x:RX, y:RY, view:'rear34'});
+  });
+  // toit : quatre quarts
+  [[-0.93,'avant'],[-1.41,'arrière']].forEach(([x,fa]) => [[1,'droit'],[-1,'gauche']].forEach(([s,lab]) =>
+    Z({id:`toit-${fa[0]}${lab[0]}`, name:`Toit ${fa} ${lab}`, group:'Toit (vue drone)', w:0.46, h:0.44, price:200, tier:'', center:[x, BOX_TOP+0.02, s*0.25], x:[0,0,1], y:[1,0,0], view:'top'})));
 }
 
 const zoneMeshes = [];
@@ -640,18 +681,13 @@ ZONES.forEach(z => {
   const c = document.createElement('canvas');
   c.width = Math.max(64, Math.round(z.w*pxPerM)); c.height = Math.max(32, Math.round(z.h*pxPerM));
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  const mat = new THREE.MeshStandardMaterial({map:tex, transparent:true, roughness:0.35, polygonOffset:true, polygonOffsetFactor:-2, depthWrite:false});
-  const m = plane(z.w, z.h, mat, z.center, z.x, z.y);
+  const mat = new THREE.MeshStandardMaterial({map:tex, transparent:true, roughness:0.35, polygonOffset:true, polygonOffsetFactor:-2, depthWrite:false, side: z.hood ? THREE.DoubleSide : THREE.FrontSide});
+  const m = z.hood ? hoodPatch(z.hood[0], z.hood[1], 0, z.w, mat) : plane(z.w, z.h, mat, z.center, z.x, z.y);
   m.renderOrder = 2; m.userData.zone = z;
   Object.assign(z, {canvas:c, tex, mesh:m, content:null, inPack:false});
   zoneMeshes.push(m);
 });
 
-{ // le sticker de capot épouse le galbe
-  const z = ZONES.find(z=>z.hood), g = new THREE.PlaneGeometry(z.w, z.h, 20, 6), p = g.attributes.position;
-  for (let i=0;i<p.count;i++) p.setZ(i, -hoodDrop(z.center[0] + p.getY(i)*z.y[0], p.getX(i)));
-  g.computeVertexNormals(); z.mesh.geometry = g;
-}
 let showZones = false, selected = null, hovered = null;
 const pending = new Map();
 
@@ -731,7 +767,7 @@ scene.add(sun); scene.add(sun.target);
 // phares (décor de nuit)
 const headlights = [1,-1].map(s => {
   const l = new THREE.SpotLight(0xfff1c8, 0, 28, 0.5, 0.6, 1.2);
-  l.position.set(FRONT+0.05, 0.79, s*0.51); l.target.position.set(FRONT+6, 0.1, s*0.9);
+  l.position.set(FRONT+0.05, 0.70, s*0.51); l.target.position.set(FRONT+6, 0.1, s*0.9);
   car.add(l); car.add(l.target); return l;
 });
 
@@ -891,29 +927,29 @@ const stripeMat = new THREE.MeshStandardMaterial({color:0xc9ef1f, roughness:0.4,
 function rallyStripes(on){
   decoGroup.clear();
   if (!on) return;
-  // deux bandes du capot jusqu'au toit et aux portes arrière
-  const hz = ZONES.find(z=>z.hood);
+  // deux bandes du capot jusqu'au toit et à la porte arrière
   [-0.30, 0.30].forEach(zz => {
-    const s1 = plane(0.68, 0.11, stripeMat, [hz.center[0], hz.center[1]+0.001, zz], hz.y, [0,0,1]); decoGroup.add(s1);
-    const s2 = plane(0.11, 1.10, stripeMat, [-1.08, BOX_TOP+0.019, zz], [0,0,1], [1,0,0]); decoGroup.add(s2);
-    const s3 = plane(0.11, 0.98, stripeMat, [BOX_REAR-0.007, 1.03, zz], [0,0,1], [0,1,0]); decoGroup.add(s3);
+    decoGroup.add(hoodPatch(0.70, 1.48, zz, 0.11, stripeMat, 0.003));
+    decoGroup.add(plane(0.11, 0.95, stripeMat, [-1.17, BOX_TOP+0.019, zz], [0,0,1], [1,0,0]));
+    decoGroup.add(plane(0.11, 0.98, stripeMat, [BOX_REAR-0.004, 1.03, zz], [0,0,1], [0,1,0]));
   });
 }
 
+const both = (id, content) => { setContent(id+'-d', content); setContent(id+'-g', content); };
 const LIVERIES = [
   {id:'actuelle', name:'Telle qu\'elle est', desc:'Bleu roi, liserés et jantes jaune fluo', paint:0x1f36b4, accent:0xc9ef1f, apply:()=>{}},
   {id:'equipage', name:'Équipage 435', desc:'Le badge de l\'équipage sur les flancs, bandeau au nom de l\'équipe', paint:0x1f36b4, accent:0xc9ef1f, apply:()=>{
-    setContent('flanc-d', {img:badgeImg}); setContent('flanc-g', {img:badgeImg});
-    setContent('bandeau', {text:'TANDEM DE LA VICTOIRE', color:'#ffffff', bg:'rgba(18,29,69,.92)'});
-    setContent('porte-d', {text:'435', color:'#121d45', bg:'#f4efe3'}); setContent('porte-g', {text:'435', color:'#121d45', bg:'#f4efe3'});
+    both('flanc-ar', {img:badgeImg});
+    setContent('bandeau-d', {text:'LE TANDEM', color:'#ffffff', bg:'rgba(18,29,69,.92)'}); setContent('bandeau-g', {text:'DE LA VICTOIRE', color:'#ffffff', bg:'rgba(18,29,69,.92)'});
+    both('porte', {text:'435', color:'#121d45', bg:'#f4efe3'});
   }},
-  {id:'rallye', name:'Bandes rallye', desc:'Deux bandes fluo du capot aux portes arrière', paint:0x1f36b4, accent:0xc9ef1f, stripes:true, apply:()=>{
-    setContent('porte-d', {text:'435', color:'#121d45', bg:'#c9ef1f'}); setContent('porte-g', {text:'435', color:'#121d45', bg:'#c9ef1f'});
-    setContent('bandeau', {text:'4L TROPHY 2027', color:'#121d45', bg:'#c9ef1f'});
+  {id:'rallye', name:'Bandes rallye', desc:'Deux bandes fluo du capot à la porte arrière', paint:0x1f36b4, accent:0xc9ef1f, stripes:true, apply:()=>{
+    both('porte', {text:'435', color:'#121d45', bg:'#c9ef1f'});
+    setContent('bandeau-d', {text:'4L TROPHY', color:'#121d45', bg:'#c9ef1f'}); setContent('bandeau-g', {text:'2027', color:'#121d45', bg:'#c9ef1f'});
   }},
   {id:'sable', name:'Sable et or', desc:'Une teinte désert, accents bleu nuit, rappel du logo', paint:0xd8b779, accent:0x121d45, apply:()=>{
-    setContent('flanc-d', {img:badgeImg}); setContent('flanc-g', {img:badgeImg});
-    setContent('bandeau', {text:'TANDEM DE LA VICTOIRE', color:'#f3d48a', bg:'#121d45'});
+    both('flanc-ar', {img:badgeImg});
+    setContent('bandeau-d', {text:'LE TANDEM', color:'#f3d48a', bg:'#121d45'}); setContent('bandeau-g', {text:'DE LA VICTOIRE', color:'#f3d48a', bg:'#121d45'});
   }},
 ];
 let currentLivery = 'actuelle';
@@ -992,8 +1028,10 @@ const fileIn = document.getElementById('fileIn');
 function euros(n){ return n.toLocaleString('fr-FR') + ' €'; }
 function renderLists(){
   zoneList.innerHTML = '';
+  let grp = null;
   ZONES.forEach(z => {
-    const d = document.createElement('div');
+    if (z.group !== grp){ grp = z.group; const h = document.createElement('h3'); h.textContent = grp; zoneList.appendChild(h); }
+    const d = document.createElement('div'); d.dataset.id = z.id;
     d.className = 'zone' + (z === selected ? ' sel' : '') + (z.content && !z.content.livery ? ' taken' : '');
     d.innerHTML = `<span class="dot"></span><span class="nm">${z.name}<small>${Math.round(z.w*100)} × ${Math.round(z.h*100)} cm${z.tier ? ' · ' + z.tier : ''}</small></span><span class="pr">${euros(z.price)}</span>`;
     d.onclick = () => selectZone(z.id);
@@ -1039,7 +1077,7 @@ function renderLists(){
   }
   renderPack();
 }
-function markTaken(){ [...zoneList.children].forEach((d,i) => d.classList.toggle('taken', !!(ZONES[i].content && !ZONES[i].content.livery))); }
+function markTaken(){ zoneList.querySelectorAll('.zone').forEach(d => { const z = ZONES.find(z => z.id === d.dataset.id); d.classList.toggle('taken', !!(z.content && !z.content.livery)); }); }
 function renderPack(){
   const sel = ZONES.filter(z => z.inPack);
   const tot = sel.reduce((a,z)=>a+z.price, 0);
@@ -1150,7 +1188,7 @@ document.getElementById('loading').style.opacity = 0;
 setTimeout(()=>document.getElementById('loading').remove(), 600);
 setTimeout(()=>{ const h = document.getElementById('hint'); if (h) h.style.opacity = 0; }, 6000);
 window.__ready = true;
-window.__api = {extras, snap:(n)=>{goView(n); tween.t=0.999;}, goView, setDecor, setLivery, selectZone, toggleZones:()=>document.getElementById('zonesBtn').click()};
+window.__api = {cam:(p,t)=>{camera.position.set(...p);controls.target.set(...t);controls.update();}, extras, snap:(n)=>{goView(n); tween.t=0.999;}, goView, setDecor, setLivery, selectZone, toggleZones:()=>document.getElementById('zonesBtn').click()};
 </script>
 </body>
 </html>
