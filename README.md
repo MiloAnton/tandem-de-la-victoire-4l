@@ -14,7 +14,6 @@ Il sert à montrer aux sponsors ce que donnerait leur logo sur la voiture :
 - onglet Trajet : carte stylisée Paris → Marrakech (tracé indicatif)
 - intro cinématique, phares, warnings, vues rapides et capture d'image
 
-Pour activer l'envoi par e-mail du message « Je suis intéressé », renseigner `CONTACT_EMAIL` dans `index.html`.
 
 ## Technique
 

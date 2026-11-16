@@ -198,7 +198,7 @@
       <a class="btn" href="https://ig.me/m/tdlv4ltrophy2k27" target="_blank" rel="noopener" style="text-decoration:none">Écrire sur Instagram</a>
       <button class="btn ghost" id="askClose">Fermer</button>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:0">Instagram : @tdlv4ltrophy2k27. Colle le message copié dans la conversation.</p>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:0">E-mail : milo@leonis-formation.fr · Instagram : @tdlv4ltrophy2k27 (colle le message copié dans la conversation).</p>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -1502,7 +1502,7 @@ function packText(){
 }
 async function copyText(txt, ok){ try { await navigator.clipboard.writeText(txt); toast(ok); } catch { toast('Copie impossible ici, sélectionne le texte'); } }
 // Adresse de contact de l'équipage : à renseigner pour activer le bouton « Envoyer par e-mail »
-const CONTACT_EMAIL = '';
+const CONTACT_EMAIL = 'milo@leonis-formation.fr';
 function askText(){
   const org = document.getElementById('askOrg').value.trim(), mail = document.getElementById('askMail').value.trim();
   return `Bonjour,\n\nLe sponsoring de votre 4L pour le 4L Trophy 2027 m'intéresse${org ? ' (' + org + ')' : ''}. Voici les emplacements que j'ai retenus :\n\n` + packText() + `\n\n` + (mail ? `Vous pouvez me recontacter ici : ${mail}\n\n` : '') + `Bien cordialement`;
