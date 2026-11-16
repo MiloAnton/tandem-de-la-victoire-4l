@@ -42,7 +42,8 @@
   .zone .nm{flex:1;font-size:13.5px;font-weight:600}
   .zone .nm small{display:block;font-weight:400;color:var(--muted);font-size:11.5px;margin-top:1px}
   .zone .pr{font-size:13px;color:var(--gold2);font-weight:600;white-space:nowrap}
-  .detail{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03)}
+  .zone{scroll-margin-top:8px}
+  .detail{margin:4px 0 12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03)}
   .detail .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
   .btn{background:var(--navy2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 11px;font:600 12.5px Archivo,sans-serif;cursor:pointer}
   .btn:hover{border-color:var(--gold)}
@@ -451,6 +452,13 @@ const GR_Y = 0.69, HL_Z = 0.41;
   rplane(1.03, 0.185, 0.05, M.black, [FRONT+0.008, GR_Y, 0], [0,0,-1], [0,1,0]);
   const gr = new THREE.CanvasTexture(makeGrille()); gr.colorSpace = THREE.SRGBColorSpace;
   plane(0.62, 0.165, new THREE.MeshStandardMaterial({map:gr, roughness:0.6}), [FRONT+0.014, GR_Y, 0], [0,0,-1], [0,1,0]);
+  { // emblème de calandre : petit cœur chromé, façon monogramme d'époque
+    const pts = k => Array.from({length:48}, (_, i) => { const t = i/48*Math.PI*2;
+      return new THREE.Vector2(16*Math.sin(t)**3*k, (13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t) + 2.5)*k); });
+    const H = new THREE.Shape(pts(0.003)); H.holes.push(new THREE.Path(pts(0.0019)));
+    const heart = new THREE.Mesh(new THREE.ExtrudeGeometry(H, {depth:0.008, bevelEnabled:true, bevelSize:0.002, bevelThickness:0.002, bevelSegments:2}), M.chrome);
+    heart.rotation.y = Math.PI/2; heart.position.set(FRONT+0.016, GR_Y, 0); add(heart);
+  }
   // entourage de calandre : liseré fluo
   const S = rrShape(1.06, 0.215, 0.065); S.holes.push(rrShape(1.03, 0.185, 0.05, new THREE.Path()));
   const fr = new THREE.Mesh(new THREE.ExtrudeGeometry(S, {depth:0.03, bevelEnabled:false, curveSegments:8}), M.accent);
@@ -1085,6 +1093,8 @@ function selectZone(id, move = true){
   if (move && selected) goView(selected.view);
   switchTab('sponsors');
   renderLists();
+  const row = zoneList.querySelector('.zone.sel');
+  if (row && !move) row.scrollIntoView({block:'start', behavior:'smooth'});
 }
 
 /* ---------- Panneau ---------- */
@@ -1092,6 +1102,7 @@ const zoneList = document.getElementById('zoneList'), detail = document.getEleme
 const fileIn = document.getElementById('fileIn');
 function euros(n){ return n.toLocaleString('fr-FR') + ' €'; }
 function renderLists(){
+  zoneList.after(detail);
   zoneList.innerHTML = '';
   let grp = null;
   ZONES.forEach(z => {
@@ -1102,6 +1113,7 @@ function renderLists(){
     d.onclick = () => selectZone(z.id);
     zoneList.appendChild(d);
   });
+  { const row = zoneList.querySelector('.zone.sel'); if (row) row.after(detail); }
   if (selected && selected.reserved){
     detail.innerHTML = `<h2 style="margin-top:0">${selected.name}</h2><p class="lead" style="margin:0">Emplacement réservé à l'organisation du 4L Trophy : son logo y est obligatoire.</p>`;
     renderPack(); return;
