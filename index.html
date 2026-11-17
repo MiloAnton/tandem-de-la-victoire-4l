@@ -223,6 +223,14 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
+let awakeUntil = 0;
+// garde le rendu actif un court instant après un changement (clic, saisie, texture chargée...)
+function wake(ms = 1200){ awakeUntil = Math.max(awakeUntil, performance.now() + ms); }
+['pointerdown', 'pointerup', 'click', 'wheel', 'keydown', 'input', 'change', 'resize'].forEach(ev => addEventListener(ev, () => wake(), {capture:true, passive:true}));
+document.addEventListener('visibilitychange', () => wake());
+document.fonts.addEventListener?.('loadingdone', () => wake());
+THREE.DefaultLoadingManager.onLoad = () => wake();
+THREE.DefaultLoadingManager.onProgress = () => wake();
 const pmrem = new THREE.PMREMGenerator(renderer);
 const baseEnv = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environment = baseEnv;
@@ -872,7 +880,7 @@ const openParts = {};
   {
     const hy = hoodSurf(1.50, 0);
     const G = pivot(1.50, hy, 0);
-    grab(G, (a, b) => a.x > 0.66 && b.x < 1.52 && a.y > 0.80 && b.y < 1.12 && a.z > -0.66 && b.z < 0.66);
+    grab(G, (a, b) => a.x > 0.66 && b.x < 1.58 && a.y > 0.80 && b.y < 1.12 && a.z > -0.66 && b.z < 0.66);
     const skin = hoodPatch(0.665, 1.50, 0, 1.26, paintSkin, 0.004); skin.castShadow = true; G.attach(skin);
     const hole = hoodPatch(0.70, 1.47, 0, 1.16, darkMat, 0.003);
     // moteur simplifié, en relief sur le fond
@@ -987,6 +995,7 @@ function drawZone(z){
     }
   }
   z.tex.needsUpdate = true;
+  wake();
 }
 function roundRect(x, a, b, w, h, r){ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+w,b,a+w,b+h,r); x.arcTo(a+w,b+h,a,b+h,r); x.arcTo(a,b+h,a,b,r); x.arcTo(a,b,a+w,b,r); x.closePath(); }
 function redrawAll(){ ZONES.forEach(drawZone); }
@@ -1698,6 +1707,7 @@ function resize(){
 }
 addEventListener('resize', resize);
 const clock = new THREE.Clock();
+
 function loop(){
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
   if (intro) updateIntro(dt);
@@ -1715,8 +1725,11 @@ function loop(){
     if (f) f.userData.flame.scale.set(1, 1 + Math.sin(t*11)*0.12, 1);
   }
   if (warnOn) M.orange.emissiveIntensity = (t*1.4 % 1) < 0.5 ? 3.5 : 0;
-  controls.update();
-  renderer.render(scene, camera);
+  const moved = controls.update();
+  // rendu à la demande : on ne redessine que si quelque chose bouge ou vient de changer
+  const animating = moved || intro || tween || controls.autoRotate || speed > 0 || driving || warnOn
+    || currentDecor === 'bivouac' || Object.keys(open).some(k => open[k] !== openTarget[k]);
+  if (animating || performance.now() < awakeUntil){ renderer.render(scene, camera); window.__frames = (window.__frames || 0) + 1; }
   requestAnimationFrame(loop);
 }
 
@@ -1735,6 +1748,7 @@ setTimeout(()=>document.getElementById('loading').remove(), 600);
 setTimeout(()=>{ const h = document.getElementById('hint'); if (h) h.style.opacity = 0; }, 6000);
 window.__ready = true;
 window.__api = {setOpen, setDrive, cam:(p,t)=>{endIntro();camera.position.set(...p);controls.target.set(...t);controls.update();}, extras, snap:(n)=>{goView(n); tween.t=0.999;}, goView, setDecor, setLivery, selectZone, toggleZones:()=>document.getElementById('zonesBtn').click()};
+for (const k in window.__api){ const f = window.__api[k]; if (typeof f === 'function') window.__api[k] = (...a) => { wake(); return f(...a); }; }
 </script>
 </body>
 </html>
