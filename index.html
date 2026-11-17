@@ -223,7 +223,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-let awakeUntil = 0, garageMirror = null, garageVeil = null;
+const PLINTH = 0.14; let carBaseY = 0, awakeUntil = 0, garageMirror = null, garageVeil = null;
 // garde le rendu actif un court instant après un changement (clic, saisie, texture chargée...)
 function wake(ms = 1200){ awakeUntil = Math.max(awakeUntil, performance.now() + ms); }
 ['pointerdown', 'pointerup', 'click', 'wheel', 'keydown', 'input', 'change', 'resize'].forEach(ev => addEventListener(ev, () => wake(), {capture:true, passive:true}));
@@ -1088,10 +1088,22 @@ let garageEnv;
   const veil = garageVeil = new THREE.Mesh(new THREE.PlaneGeometry(RX, RZ), new THREE.MeshBasicMaterial({color:0x050506, transparent:true, opacity:0.5, depthWrite:false}));
   veil.rotation.x = -Math.PI/2; veil.position.y = 0.003; g.add(veil);
   // plateau de présentation
-  const disc = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 2.7, 0.02, 96), new THREE.MeshStandardMaterial({color:0x9c9a96, roughness:0.6}));
-  disc.position.y = -0.002; disc.receiveShadow = true; g.add(disc);
-  const halo = new THREE.Mesh(new THREE.RingGeometry(2.7, 2.74, 96), new THREE.MeshBasicMaterial({color:0xffffff, fog:false}));
-  halo.rotation.x = -Math.PI/2; halo.position.y = 0.006; g.add(halo);
+  { // plateau surélevé : socle beige satiné, bord arrondi, filet chromé et rainure lumineuse à la base
+    const R = 2.7, H = PLINTH;
+    const c = document.createElement('canvas'); c.width = 64; c.height = 1024; const x = c.getContext('2d');
+    x.fillStyle = '#d2bd96'; x.fillRect(0, 0, 64, 1024);
+    for (let i=0;i<1024;i++){ const v = 0.5 + 0.5*Math.sin(i*0.9) * Math.sin(i*0.031 + 1.3); // fins cercles concentriques, à peine visibles
+      x.fillStyle = `rgba(${v > 0.5 ? '255,250,238' : '150,130,100'},${0.035 + 0.03*Math.abs(v - 0.5)})`; x.fillRect(0, i, 64, 1); }
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.anisotropy = 8;
+    const prof = [[0, H], [R - 0.06, H], [R - 0.022, H - 0.008], [R - 0.004, H - 0.03], [R, H - 0.06], [R, 0.05], [R - 0.035, 0.035], [R - 0.035, 0.0]]
+      .reverse().map(([r, y]) => new THREE.Vector2(r, y)); // du bas vers le haut : normales vers l'extérieur
+    const mat = new THREE.MeshPhysicalMaterial({map:tex, color:0xffffff, roughness:0.34, clearcoat:0.35, clearcoatRoughness:0.28, envMapIntensity:0.6});
+    const disc = new THREE.Mesh(new THREE.LatheGeometry(prof, 160), mat); disc.receiveShadow = true; disc.castShadow = true; g.add(disc);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(R - 0.03, 0.006, 8, 160), new THREE.MeshStandardMaterial({color:0xdcd6cc, roughness:0.15, metalness:1}));
+    rim.rotation.x = Math.PI/2; rim.position.y = H - 0.004; g.add(rim);
+    const led = new THREE.Mesh(new THREE.TorusGeometry(R - 0.03, 0.009, 8, 160), new THREE.MeshBasicMaterial({color:0xfff1d6, fog:false}));
+    led.rotation.x = Math.PI/2; led.position.y = 0.022; g.add(led);
+  }
   // médaillon de l'équipage en relief sur le mur du fond
   {
     const m = new THREE.Group(); m.position.set(-RX/2+0.02, 2.35, 0); m.rotation.z = -Math.PI/2; g.add(m); // axe du médaillon vers la salle
@@ -1368,6 +1380,7 @@ function setDecor(id){
   currentDecor = id; const d = DECORS[id];
   if (typeof perfHoldUntil !== 'undefined') perfHoldUntil = performance.now() + 2000; // compilation des nouveaux matériaux
   scene.environment = d.garage ? garageEnv : baseEnv;
+  carBaseY = d.garage ? PLINTH : 0; car.position.y = carBaseY; // la 4L se pose sur le plateau du showroom
   Object.entries(decorGroups).forEach(([k,g]) => g.visible = k === id);
   skyMat.uniforms.top.value.set(d.sky[0]); skyMat.uniforms.mid.value.set(d.sky[1]); skyMat.uniforms.bottom.value.set(d.sky[2]);
   scene.fog = new THREE.Fog(d.fog[0], d.fog[1], d.fog[2]);
@@ -1466,10 +1479,10 @@ function setDrive(on){
 }
 function updateDrive(dt, t){
   speed += ((driving ? 13 : 0) - speed)*Math.min(1, dt*1.5);
-  if (speed < 0.02 && !driving){ if (speed){ speed = 0; car.position.y = 0; car.rotation.z = 0; dust.pts.visible = false; resetScroll(); } return; }
+  if (speed < 0.02 && !driving){ if (speed){ speed = 0; car.position.y = carBaseY; car.rotation.z = 0; dust.pts.visible = false; resetScroll(); } return; }
   const k = speed/13;
   wheels.forEach(w => w.spin.rotation.z -= w.s*speed/WHEEL_R*dt);
-  car.position.y = k*(0.010*Math.sin(t*9.1) + 0.007*Math.sin(t*14.7));
+  car.position.y = carBaseY + k*(0.010*Math.sin(t*9.1) + 0.007*Math.sin(t*14.7));
   car.rotation.z = k*0.005*Math.sin(t*5.3);
   (decorGroups[currentDecor].userData.scroll || []).forEach(o => { const u = o.userData; if (u.x0 === undefined) u.x0 = o.position.x;
     o.position.x -= speed*dt; if (o.position.x < -u.period/2) o.position.x += u.period; });
