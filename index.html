@@ -167,9 +167,16 @@
     .panel{left:8px;right:8px;top:auto;bottom:8px;width:auto;height:46vh}
     .views{bottom:calc(46vh + 14px);max-width:none;right:0;left:0;flex-wrap:nowrap;overflow-x:auto;padding:0 8px;scrollbar-width:none}
     .views .chip{flex:none}
-    .quick{top:74px;left:8px}
-    .qbtn{padding:7px 12px 7px 9px}
-    .qbtn b{font-size:14px}
+    /* mobile : boutons en pastilles compactes sur une ligne, sous le titre */
+    .quick{top:58px;left:8px;right:8px;flex-direction:row;gap:6px}
+    .qbtn{padding:6px 11px 6px 8px;border-radius:999px;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+    .qbtn .qi{font-size:15px}
+    .qbtn b{font:700 12.5px Archivo,sans-serif}
+    .qbtn small{display:none}
+    .brand{top:10px;left:10px;gap:8px}
+    .brand p{display:none}
+    .brand h1 #stageTag{font-size:10px;padding:3px 8px;margin-left:6px}
+    .shade{height:96px}
     .brand p{font-size:11px;max-width:250px}
     .brand img{width:46px;height:46px}.brand h1{font-size:16px}
     .hint{display:none}
@@ -2580,6 +2587,8 @@ async function copyText(txt, ok){ try { await navigator.clipboard.writeText(txt)
 const CONTACT_EMAIL = 'milo@leonis-formation.fr';
 // Lien de la cagnotte HelloAsso : à renseigner dès qu'elle est en ligne
 const HELLOASSO_URL = 'https://www.helloasso.com/associations/tandem-de-la-victoire/adhesions/4l-trophy-2027-tandem-de-la-victoire';
+// passer à true quand la page HelloAsso est prête : les boutons de don deviennent cliquables
+const HELLOASSO_READY = false;
 function askText(){
   const org = document.getElementById('askOrg').value.trim(), mail = document.getElementById('askMail').value.trim();
   return `Bonjour,\n\nLe sponsoring de votre 4L pour le 4L Trophy 2027 m'intéresse${org ? ' (' + org + ')' : ''}. Voici les emplacements que j'ai retenus :\n\n` + packText() + `\n\n` + (mail ? `Vous pouvez me recontacter ici : ${mail}\n\n` : '') + `Bien cordialement`;
@@ -2679,9 +2688,9 @@ function buildStatic(){
     document.getElementById('soSponsor').onclick = () => { open(false); switchTab('sponsors'); };
     addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('solOpen')) open(false); });
     ['soDonate', 'soDonate2'].forEach(id => { const a = document.getElementById(id);
-      if (HELLOASSO_URL) a.href = HELLOASSO_URL;
+      if (HELLOASSO_URL && HELLOASSO_READY) a.href = HELLOASSO_URL;
       else { a.classList.add('soon'); a.removeAttribute('href'); a.textContent = 'Cagnotte HelloAsso bientôt en ligne'; } });
-    document.getElementById('soDonateNote').textContent = HELLOASSO_URL ? '' : 'En attendant l\'ouverture de la cagnotte, écrivez-nous pour nous soutenir.';
+    document.getElementById('soDonateNote').textContent = HELLOASSO_URL && HELLOASSO_READY ? '' : 'En attendant l\'ouverture de la cagnotte, écrivez-nous pour nous soutenir.';
   }
   document.getElementById('mapClose').onclick = () => setBigMap(false);
   addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('mapBig')) setBigMap(false); });
