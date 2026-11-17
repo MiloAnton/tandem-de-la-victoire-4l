@@ -694,7 +694,7 @@ const ZONES = [];
 {
   const Z = (o) => ZONES.push(o);
   // avant
-  Z({id:'capot', name:'Capot', group:'Avant', w:1.00, h:0.66, price:300, tier:'Vu de face, sur toutes les photos', hood:[0.74, 1.40], view:'front34'});
+  Z({id:'capot', name:'Capot', group:'Avant', w:1.00, h:0.78, price:300, tier:'Vu de face, sur toutes les photos', hood:[0.72, 1.50], view:'front34'});
   {
     const wb = new THREE.Vector2(WS_BASE, BELT), wt = new THREE.Vector2(WS_TOP[0], WS_TOP[1]);
     const wd = wt.clone().sub(wb).normalize(), n = new THREE.Vector2(wd.y, -wd.x);
@@ -862,7 +862,7 @@ function drawZone(z){
   if (ct){
     if (ct.bg){ x.fillStyle = ct.bg; roundRect(x, 0, 0, W, H, Math.min(W,H)*0.08); x.fill(); }
     if (ct.img){
-      const pad = Math.min(W,H)*0.08;
+      const pad = Math.min(W,H)*(ct === z.content && z.sold ? 0.03 : 0.08);
       const r = Math.min((W-2*pad)/ct.img.width, (H-2*pad)/ct.img.height);
       const iw = ct.img.width*r, ih = ct.img.height*r;
       x.drawImage(ct.img, (W-iw)/2, (H-ih)/2, iw, ih);
