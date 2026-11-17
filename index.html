@@ -715,6 +715,7 @@ const ZONES = [];
     ['flanc-ar', 'Flanc haut arrière', 0.40, 0.34, 400, -1.39, 1.30, BOX_SIDE, 'Emplacement phare'],
     ['orga', 'Plaque équipage', 0.34, 0.34, 0, 0.42, 0.74, CAB_SIDE, 'Réservé à l\'organisation', 'plaque'],
     ['porte', 'Portière', 0.46, 0.32, 400, -0.03, 0.74, CAB_SIDE, ''],
+    ['vitre', 'Petite vitre arrière', 0.25, 0.34, 200, -0.55, 1.30, BOX_SIDE+0.002, 'Sticker de vitre'],
     ['portb', 'Bandeau de portière', 0.50, 0.07, 150, 0.25, 1.012, CAB_SIDE, 'À côté de la poignée'],
     ['toitc', 'Côté du toit surélevé', 0.96, 0.13, 250, -1.12, 1.595, 0.73, ''],
     ['bas', 'Bas de caisse', 0.30, 0.34, 200, -0.60, 0.74, BOX_SIDE, ''],
@@ -723,7 +724,8 @@ const ZONES = [];
     ['aile2', 'Aile avant, côté phare', 0.24, 0.15, 150, 1.35, 0.85, CAB_SIDE, ''],
   ];
   [[1,'d','droit','side'],[-1,'g','gauche','left']].forEach(([s,suf,lab,view]) => sideSpecs.forEach(([id,name,w,h,price,x,y,zs,tier,reserved]) =>
-    Z({id:id+'-'+suf, name, group:'Côté '+lab, w, h, price, tier, reserved, surf: id === 'toitc' ? {along:'x', a0:x - w/2, a1:x + w/2, c:[s*0.30, 1.45], out:s, read:s} : undefined, center:[x, y, s*(zs+0.006)], x:[s,0,0], y:[0,1,0], view})));
+    Z({id:id+'-'+suf, name, group:'Côté '+lab, w, h, price, tier, reserved, surf: id === 'toitc' ? {along:'x', a0:x - w/2, a1:x + w/2, c:[s*0.30, 1.45], out:s, read:s}
+      : id.startsWith('aile') ? {along:'x', a0:x - w/2, a1:x + w/2, c:[s*0.35, 0.70], out:s, read:s, target:cab, ymin:y - h/2} : undefined, center:[x, y, s*(zs+0.006)], x:[s,0,0], y:[0,1,0], view})));
   // arrière
   const R = BOX_REAR-0.007, RX = [0,0,1], RY = [0,1,0];
   Z({id:'lunette', name:'Lunette arrière', group:'Arrière', w:0.86, h:0.28, price:600, tier:'Vu par tous ceux qui suivent', center:[R, 1.36, 0], x:RX, y:RY, view:'rear34'});
@@ -762,19 +764,19 @@ function tubePatch({cx, cy, r, z0, z1, dir}, mat){
 }
 // sticker qui épouse le toit surélevé : on lance des rayons vers le toit, du bas du flanc (au-dessus de la gouttière)
 // jusqu'à couvrir la hauteur voulue en suivant l'arrondi, puis on maille les points touchés.
-function surfacePatch({along, a0, a1, c, out, read}, H, mat){
+function surfacePatch({along, a0, a1, c, out, read, target = roofCap, ymin = 1.572}, H, mat){
   car.updateMatrixWorld(true);
   const ray = new THREE.Raycaster(), P = (a, perp, y) => along === 'x' ? new THREE.Vector3(a, y, perp) : new THREE.Vector3(perp, y, a);
   const hit = (a, th) => {
     const dp = out*Math.cos(th), dy = Math.sin(th), o = P(a, c[0] + dp*3, c[1] + dy*3);
     ray.set(o, P(0, -dp, -dy).sub(P(0, 0, 0)).normalize());
-    const h = ray.intersectObject(roofCap, false)[0]; if (!h) return null;
-    const n = h.face.normal.clone().transformDirection(roofCap.matrixWorld);
+    const h = ray.intersectObject(target, false)[0]; if (!h) return null;
+    const n = h.face.normal.clone().transformDirection(target.matrixWorld);
     return h.point.addScaledVector(n, 0.004);
   };
   // angle de départ : premier point au-dessus de la gouttière ; angle de fin : hauteur H parcourue le long de la surface
   const am = (a0 + a1)/2; let th0 = -0.3, prev = null, len = 0, th1 = th0;
-  for (let th = -0.3; th < 1.5; th += 0.004){ const p = hit(am, th); if (p && p.y >= 1.572){ th0 = th; prev = p; break; } }
+  for (let th = -0.3; th < 1.5; th += 0.004){ const p = hit(am, th); if (p && p.y >= ymin){ th0 = th; prev = p; break; } }
   for (let th = th0; th < 1.55 && len < H; th += 0.004){ const p = hit(am, th); if (!p) continue; len += p.distanceTo(prev); prev = p; th1 = th; }
   const na = 24, nt = 14, pts = [];
   for (let i=0;i<=na;i++){ const a = a0 + (a1 - a0)*i/na, row = [];
