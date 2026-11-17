@@ -1894,7 +1894,7 @@ function acacia(){
     T.position.set(fx - 2.2, 0, fz + 0.6); shadowAll(T); g.add(T); scrollable(g, T, 90); }
   // guirlande lumineuse entre deux mâts
   { const L = new THREE.Group(), pole = M2(0x5d4632);
-    const a = [fx - 4.5, 2.6, fz - 2.5], b = [fx + 3.5, 2.6, fz - 3.2];
+    const a = [fx - 4.5, 2.6, fz - 4.0], b = [fx + 3.5, 2.6, fz - 5.4]; // mâts écartés de la 4L
     [a, b].forEach(p => tube([p[0], 0, p[2]], p, 0.04, L, pole));
     const bulb = new THREE.MeshBasicMaterial({color:0xffd27a});
     for (let i=0;i<=20;i++){ const t = i/20, sag = 0.6*4*t*(1-t);
