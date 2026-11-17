@@ -716,19 +716,19 @@ const ZONES = [];
     ['flanc-ar', 'Flanc haut arrière', 0.40, 0.34, 400, -1.39, 1.30, BOX_SIDE, 'Emplacement phare'],
     ['orga', 'Plaque équipage', 0.34, 0.34, 0, 0.42, 0.74, CAB_SIDE, 'Réservé à l\'organisation', 'plaque'],
     ['porte', 'Portière', 0.46, 0.32, 400, -0.03, 0.74, CAB_SIDE, ''],
-    ['toitc', 'Côté du toit surélevé', 0.96, 0.055, 250, -1.12, 1.595, 0.73, ''],
+    ['toitc', 'Côté du toit surélevé', 0.96, 0.13, 250, -1.12, 1.595, 0.73, ''],
     ['bas', 'Bas de caisse', 0.30, 0.34, 200, -0.60, 0.74, BOX_SIDE, ''],
     ['roue', 'Dessus de roue arrière', 0.62, 0.15, 200, -1.15, 0.855, BOX_SIDE, ''],
     ['aile', 'Aile avant', 0.34, 0.075, 100, 1.24, 0.757, CAB_SIDE, ''],
   ];
   [[1,'d','droit','side'],[-1,'g','gauche','left']].forEach(([s,suf,lab,view]) => sideSpecs.forEach(([id,name,w,h,price,x,y,zs,tier,reserved]) =>
-    Z({id:id+'-'+suf, name, group:'Côté '+lab, w, h, price, tier, reserved, center:[x, y, s*(zs+0.006)], x:[s,0,0], y:[0,1,0], view})));
+    Z({id:id+'-'+suf, name, group:'Côté '+lab, w, h, price, tier, reserved, surf: id === 'toitc' ? {along:'x', a0:x - w/2, a1:x + w/2, c:[s*0.30, 1.45], out:s, read:s} : undefined, center:[x, y, s*(zs+0.006)], x:[s,0,0], y:[0,1,0], view})));
   // arrière
   const R = BOX_REAR-0.007, RX = [0,0,1], RY = [0,1,0];
   Z({id:'lunette', name:'Lunette arrière', group:'Arrière', w:0.86, h:0.28, price:600, tier:'Vu par tous ceux qui suivent', center:[R, 1.36, 0], x:RX, y:RY, view:'rear34'});
   Z({id:'arriere', name:'Bandeau de porte arrière', group:'Arrière', w:1.10, h:0.19, price:400, tier:'', center:[R, 1.06, 0], x:RX, y:RY, view:'rear34'});
   [[1,'droit','d'],[-1,'gauche','g']].forEach(([s,lab,suf]) => {
-    Z({id:'hautar-'+suf, name:'Haut de toit arrière '+lab, group:'Arrière', w:0.48, h:0.055, price:300, tier:'', center:[-1.746, 1.598, s*0.27], x:RX, y:RY, view:'rear34'});
+    Z({id:'hautar-'+suf, name:'Haut de toit arrière '+lab, group:'Arrière', w:0.48, h:0.12, price:300, tier:'', surf:{along:'z', a0:s*0.27 - 0.24, a1:s*0.27 + 0.24, c:[-1.30, 1.45], out:-1, read:1}, view:'rear34'});
     Z({id:'basar-'+suf, name:'Bas de porte arrière '+lab, group:'Arrière', w:0.30, h:0.24, price:150, tier: s < 0 ? 'Réservé à l\'organisation' : '', reserved: s < 0 && 'plaque', center:[R, 0.78, s*0.42], x:RX, y:RY, view:'rear34'});
   });
   // pare-chocs : petits stickers enroulés sur le tube
@@ -759,14 +759,46 @@ function tubePatch({cx, cy, r, z0, z1, dir}, mat){
   ZONES.forEach((z, i) => z._i = i);
   ZONES.sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || a._i - b._i);
 }
+// sticker qui épouse le toit surélevé : on lance des rayons vers le toit, du bas du flanc (au-dessus de la gouttière)
+// jusqu'à couvrir la hauteur voulue en suivant l'arrondi, puis on maille les points touchés.
+function surfacePatch({along, a0, a1, c, out, read}, H, mat){
+  car.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(), P = (a, perp, y) => along === 'x' ? new THREE.Vector3(a, y, perp) : new THREE.Vector3(perp, y, a);
+  const hit = (a, th) => {
+    const dp = out*Math.cos(th), dy = Math.sin(th), o = P(a, c[0] + dp*3, c[1] + dy*3);
+    ray.set(o, P(0, -dp, -dy).sub(P(0, 0, 0)).normalize());
+    const h = ray.intersectObject(roofCap, false)[0]; if (!h) return null;
+    const n = h.face.normal.clone().transformDirection(roofCap.matrixWorld);
+    return h.point.addScaledVector(n, 0.004);
+  };
+  // angle de départ : premier point au-dessus de la gouttière ; angle de fin : hauteur H parcourue le long de la surface
+  const am = (a0 + a1)/2; let th0 = -0.3, prev = null, len = 0, th1 = th0;
+  for (let th = -0.3; th < 1.5; th += 0.004){ const p = hit(am, th); if (p && p.y >= 1.572){ th0 = th; prev = p; break; } }
+  for (let th = th0; th < 1.55 && len < H; th += 0.004){ const p = hit(am, th); if (!p) continue; len += p.distanceTo(prev); prev = p; th1 = th; }
+  const na = 24, nt = 14, pts = [];
+  for (let i=0;i<=na;i++){ const a = a0 + (a1 - a0)*i/na, row = [];
+    for (let j=0;j<=nt;j++) row.push(hit(a, th0 + (th1 - th0)*j/nt) || P(a, c[0], c[1]));
+    pts.push(row); }
+  const pos = [], uv = [], idx = [];
+  pts.forEach((row, i) => {
+    const cum = [0]; for (let j=1;j<row.length;j++) cum.push(cum[j-1] + row[j].distanceTo(row[j-1]));
+    const u = read*(along === 'x' ? 1 : 1) > 0 ? i/na : 1 - i/na;
+    row.forEach((p, j) => { pos.push(p.x, p.y, p.z); uv.push(u, cum[j]/cum[cum.length-1]); });
+  });
+  for (let i=0;i<na;i++) for (let j=0;j<nt;j++){ const a = i*(nt+1)+j, b = a+1, cc = a+nt+1, d = cc+1; idx.push(a,cc,b, b,cc,d); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  g.setIndex(idx); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, mat); car.add(m); return m;
+}
 const zoneMeshes = [];
 ZONES.forEach(z => {
   const pxPerM = 600;
   const c = document.createElement('canvas');
   c.width = Math.max(64, Math.round(z.w*pxPerM)); c.height = Math.max(32, Math.round(z.h*pxPerM));
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  const mat = new THREE.MeshStandardMaterial({map:tex, transparent:true, roughness:0.55, envMapIntensity:0.45, polygonOffset:true, polygonOffsetFactor:-2, depthWrite:false, side: z.hood || z.tube ? THREE.DoubleSide : THREE.FrontSide});
-  const m = z.hood ? hoodPatch(z.hood[0], z.hood[1], 0, z.w, mat) : z.tube ? tubePatch(z.tube, mat) : plane(z.w, z.h, mat, z.center, z.x, z.y);
+  const mat = new THREE.MeshStandardMaterial({map:tex, transparent:true, roughness:0.55, envMapIntensity:0.45, polygonOffset:true, polygonOffsetFactor:-2, depthWrite:false, side: z.hood || z.tube || z.surf ? THREE.DoubleSide : THREE.FrontSide});
+  const m = z.hood ? hoodPatch(z.hood[0], z.hood[1], 0, z.w, mat) : z.tube ? tubePatch(z.tube, mat) : z.surf ? surfacePatch(z.surf, z.h, mat) : plane(z.w, z.h, mat, z.center, z.x, z.y);
   m.renderOrder = 2; m.userData.zone = z;
   Object.assign(z, {canvas:c, tex, mesh:m, content:null, inPack:false});
   zoneMeshes.push(m);
