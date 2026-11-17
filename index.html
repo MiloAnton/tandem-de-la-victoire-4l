@@ -910,6 +910,49 @@ const extras = {
 };
 Object.values(extras).forEach(g => g.visible = false);
 
+/* ---------- Compte à rebours holographique sur le pare-brise ---------- */
+const DEPART = new Date('2027-02-15T08:00:00+01:00'), RETOUR = new Date('2027-03-03T20:00:00+01:00');
+const holo = (() => {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 320; const x = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({map:tex, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, fog:false, side:THREE.DoubleSide});
+  const wd = new THREE.Vector2(WS_TOP[0] - WS_BASE, WS_TOP[1] - BELT).normalize(), n = new THREE.Vector2(wd.y, -wd.x);
+  const ctr = new THREE.Vector2(WS_BASE, BELT).addScaledVector(wd, 0.2).addScaledVector(n, 0.05);
+  const mesh = plane(1.06, 0.33, mat, [ctr.x, ctr.y, 0], [0,0,-1], [wd.x, wd.y, 0]);
+  mesh.renderOrder = 5;
+  const pad = v => String(v).padStart(2, '0');
+  function draw(){
+    const now = new Date(), W = c.width, H = c.height;
+    x.clearRect(0, 0, W, H);
+    const cyan = '#62f2ff', glow = 'rgba(80,230,255,.9)';
+    // cadre : coins en équerre et fines lignes de balayage
+    x.strokeStyle = cyan; x.lineWidth = 6; x.shadowColor = glow; x.shadowBlur = 18;
+    [[14, 14, 1, 1], [W - 14, 14, -1, 1], [14, H - 14, 1, -1], [W - 14, H - 14, -1, -1]].forEach(([a, b, sx, sy]) => {
+      x.beginPath(); x.moveTo(a + sx*70, b); x.lineTo(a, b); x.lineTo(a, b + sy*50); x.stroke(); });
+    x.fillStyle = 'rgba(70,200,255,.07)'; x.fillRect(14, 14, W - 28, H - 28);
+    x.fillStyle = cyan; x.textAlign = 'center'; x.textBaseline = 'middle';
+    let top, big, bottom;
+    if (now < DEPART){
+      let t = Math.floor((DEPART - now)/1000); const d = Math.floor(t/86400); t -= d*86400;
+      const h = Math.floor(t/3600); t -= h*3600; const m = Math.floor(t/60), sec = t - m*60;
+      top = 'DÉPART DU 4L TROPHY DANS'; big = `${d} J  ${pad(h)}:${pad(m)}:${pad(sec)}`; bottom = '15.02.2027  ·  PARIS → MARRAKECH';
+    } else if (now < RETOUR){
+      const d = Math.floor((now - DEPART)/86400000) + 1;
+      top = 'ÉQUIPAGE 435'; big = `EN ROUTE · JOUR ${d}`; bottom = 'PARIS → MARRAKECH → PARIS';
+    } else { top = 'ÉQUIPAGE 435 · 4L TROPHY 2027'; big = 'MISSION ACCOMPLIE'; bottom = 'MERCI À TOUS NOS SOUTIENS'; }
+    x.font = '700 34px Archivo, Arial'; if ('letterSpacing' in x) x.letterSpacing = '8px'; x.fillText(top, W/2, 68);
+    x.font = '700 104px "Courier New", monospace'; if ('letterSpacing' in x) x.letterSpacing = '4px'; x.fillText(big, W/2, 170);
+    x.font = '600 28px Archivo, Arial'; if ('letterSpacing' in x) x.letterSpacing = '6px'; x.globalAlpha = 0.8; x.fillText(bottom, W/2, 262); x.globalAlpha = 1;
+    if ('letterSpacing' in x) x.letterSpacing = '0px';
+    x.shadowBlur = 0; x.fillStyle = 'rgba(0,0,0,.28)'; for (let y = 0; y < H; y += 4) x.fillRect(0, y, W, 1);
+    tex.needsUpdate = true;
+    mat.opacity = 0.88 + Math.random()*0.12; // léger scintillement
+  }
+  draw();
+  setInterval(() => { if (document.hidden) return; draw(); if (typeof wake === 'function') wake(60); }, 1000);
+  return {mesh, draw};
+})();
+
 /* ---------- Emplacements sponsors ---------- */
 const ZONES = [];
 {
