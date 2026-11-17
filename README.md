@@ -13,6 +13,7 @@ Il sert à montrer aux sponsors ce que donnerait leur logo sur la voiture :
 - 9 décors qui suivent le trajet : showroom, Paris, Biarritz, détroit de Gibraltar, dunes, bivouac de nuit, col du Tichka, Marrakech, autoroute du retour
 - onglet Trajet : carte stylisée Paris → Marrakech (tracé indicatif)
 - intro cinématique, phares, warnings, vues rapides et capture d'image
+- page « Le volet solidaire » : associations partenaires, actions écocitoyennes et appel aux dons (renseigner `HELLOASSO_URL` dans `index.html` quand la cagnotte est en ligne)
 
 
 ## Technique
