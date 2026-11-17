@@ -80,6 +80,29 @@
   .rm-stop.on circle{fill:#c9ef1f;stroke:#c9ef1f}
   .rm-stop.on text{fill:#c9ef1f}
   .tabs button{padding-left:2px;padding-right:2px}
+  .mapWrap{position:relative}
+  .mapOpen{position:absolute;right:8px;top:8px;padding:5px 9px;font-size:12px;background:rgba(18,29,69,.9)}
+  #bigMap{position:fixed;inset:0;z-index:15;background:radial-gradient(ellipse at 30% 20%,#14225a,#070d24 70%);display:none;flex-direction:column;padding:18px 22px 16px}
+  body.mapBig #bigMap{display:flex}
+  body.mapBig .panel, body.mapBig .views, body.mapBig .hint{display:none}
+  body.mapBig .brand, body.mapBig .shade{display:none}
+  body.mapBig #scene{position:fixed;inset:auto 22px 22px auto;width:380px;height:240px;z-index:20;border:2px solid var(--gold);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+  .bm-head{display:flex;align-items:center;justify-content:flex-end;gap:16px;margin:2px 0 12px 0}
+  .bm-head h2{margin:0 auto 0 0;font-size:22px}
+  .bm-body{flex:1;display:flex;gap:18px;min-height:0}
+  .bm-map{flex:1;min-width:0;display:flex;justify-content:center}
+  .bm-map svg{max-width:100%}
+  .bm-list{width:330px;overflow-y:auto;padding-bottom:250px}
+  .bm-list .card b em{font-style:normal;color:var(--gold2);font-weight:600;float:right}
+  .bm-list .card.halt{opacity:.7;cursor:default;border-style:dashed}
+  .bm-hint{font-size:12px;color:var(--muted);margin-top:8px}
+  @media (max-width:820px){
+    #bigMap{padding:80px 10px 10px}
+    .bm-head h2{padding-left:0;font-size:16px}
+    .bm-body{flex-direction:column}
+    .bm-list{width:auto;max-height:30vh;padding-bottom:150px}
+    body.mapBig #scene{width:220px;height:140px;right:10px;bottom:10px}
+  }
   .note{font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:12px}
   .note a{color:var(--gold2)}
   .modal{position:fixed;inset:0;background:rgba(5,9,24,.78);z-index:20;display:none;align-items:center;justify-content:center;padding:20px}
@@ -183,12 +206,17 @@
   <section class="tab" id="tab-trajet">
     <h2>Paris → Marrakech</h2>
     <p class="lead">Les grandes étapes du raid. Clique sur une étape pour y emmener la 4L.</p>
-    <div id="routeMap"></div>
+    <div class="mapWrap"><div id="routeMap"></div><button class="btn mapOpen" id="mapOpen" title="Agrandir la carte">⤢ Agrandir</button></div>
     <div id="stageList"></div>
     <p class="note">Tracé indicatif : l'itinéraire officiel est fixé par l'organisation.</p>
   </section>
 </aside>
 
+<div id="bigMap" aria-hidden="true">
+  <div class="bm-head"><h2>Paris → Marrakech · 4L Trophy 2027</h2><button class="btn gold" id="mapClose">Fermer la carte</button></div>
+  <div class="bm-body"><div class="bm-map" id="bigMapSvg"></div><div class="bm-list" id="bigMapList"></div></div>
+  <div class="bm-hint">Clique sur une étape : la 4L s'y rend dans l'aperçu en bas à droite.</div>
+</div>
 <div class="modal" id="shotModal">
   <div class="box">
     <img id="shotImg" alt="Capture de la 4L">
@@ -2460,7 +2488,7 @@ function buildStatic(){
     const pid = s => s.key || s.decor;
     const left = new Set(['gibraltar', 'atlas', 'marrakech']);
     const off = {retour:[-11, 4], desert:[11, 0], bivouac:[8, 19], atlas:[-6, 21], marrakech:[-11, -10], detroit:[11, 12], gibraltar:[-11, -2]};
-    document.getElementById('routeMap').innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;border:1px solid var(--line);border-radius:12px;background:#0a1734">
+    const mapSvg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;border:1px solid var(--line);border-radius:12px;background:#0a1734">
       ${COUNTRIES.map(([n, c]) => `<polygon points="${poly(c)}" fill="${n ? '#1a2550' : '#151f44'}" stroke="#2c3a72" stroke-width="1" stroke-linejoin="round"/>`).join('')}
       <text x="${px(-9.6)}" y="${py(45.2)}" class="rm-sea">ATLANTIQUE</text><text x="${px(2.4)}" y="${py(38.6)}" class="rm-sea">MÉDITERRANÉE</text>
       <text x="${px(3.4)}" y="${py(45.7)}" class="rm-c">FRANCE</text><text x="${px(-3.8)}" y="${py(40.2)}" class="rm-c">ESPAGNE</text><text x="${px(-5.2)}" y="${py(33.3)}" class="rm-c">MAROC</text>
@@ -2471,10 +2499,16 @@ function buildStatic(){
       ${STAGES.map((s, i) => { const k = pid(s), o = off[k] || [left.has(s.decor) ? -11 : 11, 4], anchor = o[0] < 0 ? 'end' : 'start';
         return `<g data-stage="${s.decor}" class="rm-stop">${s.ret ? '' : `<circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="${k === 'detroit' ? 4 : 5.5}"/>`}<text x="${pts[i][0] + o[0]}" y="${pts[i][1] + o[1]}" text-anchor="${anchor}">${s.name}<tspan class="rm-d" x="${pts[i][0] + o[0]}" dy="12">${s.date}</tspan></text></g>`; }).join('')}
     </svg>`;
+    document.getElementById('routeMap').innerHTML = mapSvg;
+    document.getElementById('bigMapSvg').innerHTML = mapSvg.replace('style="width:100%;display:block;', 'style="height:100%;width:100%;display:block;');
+    { // liste détaillée de la carte agrandie, halte de Limoges comprise
+      const items = STAGES.map(st => ({...st})); items.splice(1, 0, {name:'Limoges', note:'Halte sur la route de Biarritz', date:'16/02', halt:true});
+      document.getElementById('bigMapList').innerHTML = items.map((st, i) => `<div class="card${st.halt ? ' halt' : ''}"${st.halt ? '' : ` data-stage="${st.decor}"`}><b>${st.name} <em>${st.date}</em></b><span>${st.note}${st.halt ? ' · sans décor' : ''}</span></div>`).join('');
+    }
     const sl = document.getElementById('stageList');
     STAGES.forEach((s, i) => { const c = document.createElement('div'); c.className = 'card'; c.dataset.stage = s.decor; c.style.marginTop = i ? '' : '10px';
       c.innerHTML = `<b>${i+1}. ${s.name} <em style="font-style:normal;color:var(--gold2);font-weight:600;float:right">${s.date}</em></b><span>${s.note}</span>`; sl.appendChild(c); });
-    document.querySelectorAll('[data-stage]').forEach(el => el.onclick = () => setDecor(el.dataset.stage));
+    document.querySelectorAll('[data-stage]').forEach(el => el.onclick = () => { setDecor(el.dataset.stage); if (document.body.classList.contains('mapBig')) goView('front34'); });
   }
   document.getElementById('optRack').onchange = e => rack.visible = e.target.checked;
   document.getElementById('optSpare').onchange = e => extras.spare.visible = e.target.checked;
@@ -2490,6 +2524,9 @@ function buildStatic(){
   document.getElementById('lightsBtn').onclick = () => setLights(!lightsOn);
   document.getElementById('warnBtn').onclick = () => setWarn(!warnOn);
   document.getElementById('shotBtn').onclick = capture;
+  document.getElementById('mapOpen').onclick = () => setBigMap(true);
+  document.getElementById('mapClose').onclick = () => setBigMap(false);
+  addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('mapBig')) setBigMap(false); });
   document.getElementById('shotClose').onclick = () => document.getElementById('shotModal').classList.remove('on');
 }
 function switchTab(t){
@@ -2547,12 +2584,19 @@ function perfSample(){
   }
   lastFrameAt = now;
 }
+function setBigMap(on){
+  document.body.classList.toggle('mapBig', on);
+  document.getElementById('bigMap').setAttribute('aria-hidden', on ? 'false' : 'true');
+  resize(); if (on) goView('front34'); wake(1500);
+}
 function resize(){
-  const w = innerWidth, h = innerHeight;
+  const big = document.body.classList.contains('mapBig'), mob = innerWidth < 820;
+  const w = big ? (mob ? 220 : 380) : innerWidth, h = big ? (mob ? 140 : 240) : innerHeight;
   renderer.setSize(w, h, false); camera.aspect = w/h;
-  camera.fov = w < 820 ? 48 : 36;
+  camera.fov = w < 820 && !big ? 48 : 36;
   // décale le cadrage pour que la 4L reste centrée dans la zone visible (hors panneau)
-  if (w >= 820){ const pw = 380; camera.setViewOffset(w + pw, h, pw, 0, w, h); }
+  if (big) camera.clearViewOffset();
+  else if (w >= 820){ const pw = 380; camera.setViewOffset(w + pw, h, pw, 0, w, h); }
   else { const ph = Math.round(h*0.46); camera.setViewOffset(w, h + ph, 0, ph, w, h); }
   camera.updateProjectionMatrix();
 }
