@@ -731,19 +731,42 @@ const ZONES = [];
     Z({id:'hautar-'+suf, name:'Haut de toit arrière '+lab, group:'Arrière', w:0.48, h:0.055, price:300, tier:'', center:[-1.746, 1.598, s*0.27], x:RX, y:RY, view:'rear34'});
     Z({id:'basar-'+suf, name:'Bas de porte arrière '+lab, group:'Arrière', w:0.30, h:0.24, price:150, tier: s < 0 ? 'Réservé à l\'organisation' : '', reserved: s < 0 && 'plaque', center:[R, 0.78, s*0.42], x:RX, y:RY, view:'rear34'});
   });
+  // pare-chocs : petits stickers enroulés sur le tube
+  const SPAN = 2.4; // angle couvert autour du tube, en radians
+  [[1, 'avant', 'Avant', FRONT+0.085, 0.42, 0.034, 0.32, 150, 'front34'], [-1, 'arrière', 'Arrière', BOX_REAR-0.06, 0.43, 0.028, 0.38, 100, 'rear34']].forEach(([dir, lab, grp, cx, cy, r, zc, price, view]) =>
+    [[1,'droit','d'],[-1,'gauche','g']].forEach(([s, side, suf]) => Z({id:`pc${dir > 0 ? 'av' : 'ar'}-${suf}`, name:`Pare-chocs ${lab} ${side}`, group:grp, w:0.30, h:+(r*SPAN).toFixed(3), price, tier:'',
+      tube:{cx, cy, r:r+0.0025, z0:s*zc - 0.15, z1:s*zc + 0.15, dir}, view})));
   // toit : quatre quarts
   [[-0.93,'avant'],[-1.41,'arrière']].forEach(([x,fa]) => [[1,'droit'],[-1,'gauche']].forEach(([s,lab]) =>
     Z({id:`toit-${fa[0]}${lab[0]}`, name:`Toit ${fa} ${lab}`, group:'Toit (vue drone)', w:0.46, h:0.44, price:200, tier:'', center:[x, BOX_TOP+0.02, s*0.25], x:[0,0,1], y:[1,0,0], view:'top'})));
 }
 
+// sticker enroulé sur un tube de pare-chocs : texte dans l'axe du tube, lisible face au pare-chocs
+function tubePatch({cx, cy, r, z0, z1, dir}, mat){
+  const nz = 12, na = 14, pos = [], uv = [], idx = [];
+  for (let i=0;i<=nz;i++) for (let j=0;j<=na;j++){
+    const t = i/nz, a = (j/na - 0.5)*2.4, z = dir > 0 ? z1 + (z0 - z1)*t : z0 + (z1 - z0)*t;
+    pos.push(cx + dir*r*Math.cos(a), cy + r*Math.sin(a), z); uv.push(t, j/na);
+  }
+  for (let i=0;i<nz;i++) for (let j=0;j<na;j++){ const a = i*(na+1)+j, b = a+1, c = a+na+1, d = c+1; idx.push(a,c,b, b,c,d); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  g.setIndex(idx); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, mat); car.add(m); return m;
+}
+{ // liste rangée par face, quel que soit l'ordre de création
+  const order = ['Avant', 'Côté droit', 'Côté gauche', 'Arrière', 'Toit (vue drone)'];
+  ZONES.forEach((z, i) => z._i = i);
+  ZONES.sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || a._i - b._i);
+}
 const zoneMeshes = [];
 ZONES.forEach(z => {
   const pxPerM = 600;
   const c = document.createElement('canvas');
   c.width = Math.max(64, Math.round(z.w*pxPerM)); c.height = Math.max(32, Math.round(z.h*pxPerM));
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  const mat = new THREE.MeshStandardMaterial({map:tex, transparent:true, roughness:0.55, envMapIntensity:0.45, polygonOffset:true, polygonOffsetFactor:-2, depthWrite:false, side: z.hood ? THREE.DoubleSide : THREE.FrontSide});
-  const m = z.hood ? hoodPatch(z.hood[0], z.hood[1], 0, z.w, mat) : plane(z.w, z.h, mat, z.center, z.x, z.y);
+  const mat = new THREE.MeshStandardMaterial({map:tex, transparent:true, roughness:0.55, envMapIntensity:0.45, polygonOffset:true, polygonOffsetFactor:-2, depthWrite:false, side: z.hood || z.tube ? THREE.DoubleSide : THREE.FrontSide});
+  const m = z.hood ? hoodPatch(z.hood[0], z.hood[1], 0, z.w, mat) : z.tube ? tubePatch(z.tube, mat) : plane(z.w, z.h, mat, z.center, z.x, z.y);
   m.renderOrder = 2; m.userData.zone = z;
   Object.assign(z, {canvas:c, tex, mesh:m, content:null, inPack:false});
   zoneMeshes.push(m);
@@ -913,10 +936,10 @@ function drawZone(z){
   }
   const active = showZones || z === selected || z === hovered;
   if (active && !(ct && z !== selected && z !== hovered && !showZones)){
-    if (!ct){ x.fillStyle = 'rgba(201,239,31,0.22)'; x.fillRect(0,0,W,H); }
+    if (!ct){ x.fillStyle = z.tube ? 'rgba(18,29,69,0.35)' : 'rgba(201,239,31,0.22)'; x.fillRect(0,0,W,H); }
     x.setLineDash([Math.max(10,W*0.03), Math.max(7,W*0.02)]);
     x.lineWidth = Math.max(4, Math.min(W,H)*0.035);
-    x.strokeStyle = z === selected ? '#ffffff' : '#c9ef1f';
+    x.strokeStyle = z === selected ? '#ffffff' : z.tube ? '#121d45' : '#c9ef1f'; // sur les pare-chocs fluo, contour bleu nuit
     x.strokeRect(x.lineWidth/2, x.lineWidth/2, W-x.lineWidth, H-x.lineWidth);
     x.setLineDash([]);
     if (!ct && H > 80){
