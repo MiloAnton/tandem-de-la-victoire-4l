@@ -2005,6 +2005,92 @@ function acacia(){
   [[16, 0xf2efe6, 0x1f6fb4], [20.5, 0x2f8f4a, 0xe4b350], [-8, 0xd5202a, 0xf2f2f2]].forEach(([x, c, r]) => { const v = mini4L(c, {rim:r, load:0x2f5d2a}); v.position.set(x, 0, -6.5); v.rotation.y = 0.25; g.add(v); scrollable(g, v, 168); });
 }
 
+
+// ---------- Autoroute française : le retour vers Paris ----------
+// voiture générique (berline, utilitaire) pour animer la circulation
+function genericCar(color, kind = 'berline'){
+  const C = new THREE.Group(), body = M2(color, 0.3, 0.2), glass = M2(0x1d2a33, 0.15, 0.4), tire = M2(0x141414, 0.9), rim = M2(0xbfc3c8, 0.4, 0.6);
+  if (kind === 'camion'){
+    rb(2.2, 2.3, 2.3, 0.08, M2(0xf2f2f2, 0.5), 3.4, 1.65, 0, C); rb(0.1, 0.9, 2.0, 0.03, glass, 4.52, 2.15, 0, C);
+    rb(7.4, 2.9, 2.5, 0.05, M2(color, 0.6), -1.6, 1.95, 0, C);
+    [[3.5, 1], [3.5, -1], [-0.5, 1], [-0.5, -1], [-3.8, 1], [-3.8, -1], [-4.8, 1], [-4.8, -1]].forEach(([x, s]) => { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.3, 16), tire); t.rotation.x = Math.PI/2; t.position.set(x, 0.48, s*1.05); C.add(t); });
+    return shadowAll(C);
+  }
+  const L = kind === 'utilitaire' ? 4.6 : 4.2;
+  rb(L, 0.62, 1.78, 0.12, body, 0, 0.62, 0, C);
+  if (kind === 'utilitaire'){ rb(L*0.72, 1.1, 1.74, 0.1, body, -L*0.12, 1.45, 0, C); rb(0.05, 0.55, 1.5, 0.02, glass, L*0.24 + 0.01, 1.55, 0, C); }
+  else { rb(L*0.48, 0.5, 1.6, 0.14, glass, -L*0.06, 1.15, 0, C); rb(L*0.36, 0.06, 1.58, 0.03, body, -L*0.08, 1.42, 0, C); }
+  [[L*0.32, 1], [L*0.32, -1], [-L*0.32, 1], [-L*0.32, -1]].forEach(([x, s]) => {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 16), tire); t.rotation.x = Math.PI/2; t.position.set(x, 0.32, s*0.82); C.add(t);
+    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.23, 12), rim); r.rotation.x = Math.PI/2; r.position.set(x, 0.32, s*0.82); C.add(r); });
+  [0.55, -0.55].forEach(z => { rb(0.04, 0.1, 0.32, 0.02, M2(0xf4f2ea, 0.2), L/2, 0.72, z, C); rb(0.04, 0.1, 0.32, 0.02, M2(0xb3121b, 0.3), -L/2, 0.75, z, C); });
+  return shadowAll(C);
+}
+{
+  const g = mkGroup('autoroute');
+  // campagne : champs en lanières, haies, rangées de peupliers
+  const fieldTex = canvasTex(512, 512, (x, W, H) => { const cols = ['#7d8f4e', '#a39a63', '#6b7f45', '#8a9a58', '#b3a26d', '#5f7840'];
+    for (let i=0;i<8;i++){ x.fillStyle = cols[i%cols.length]; x.fillRect(0, i*H/8, W, H/8); x.fillStyle = 'rgba(0,0,0,.08)'; for (let k=0;k<W;k+=9) x.fillRect(k, i*H/8, 3, H/8); } });
+  fieldTex.wrapS = fieldTex.wrapT = THREE.RepeatWrapping; fieldTex.repeat.set(5, 5);
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(170, 64), new THREE.MeshStandardMaterial({map:fieldTex, roughness:1})); ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; g.add(ground);
+  // chaussées : la nôtre (vers Paris) de z -8,5 à +4,5, terre-plein central, puis le sens opposé
+  const asph = canvasTex(256, 256, (x, W, H) => { x.fillStyle = '#4a4c50'; x.fillRect(0, 0, W, H); for (let i=0;i<2500;i++){ const v = 60 + Math.random()*40; x.fillStyle = `rgba(${v},${v},${v + 4},.5)`; x.fillRect(Math.random()*W, Math.random()*H, 2, 2); } });
+  asph.wrapS = asph.wrapT = THREE.RepeatWrapping; asph.repeat.set(60, 6);
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(400, 30), new THREE.MeshStandardMaterial({map:asph, roughness:0.85})); road.rotation.x = -Math.PI/2; road.position.set(0, 0.01, -9.5); road.receiveShadow = true; g.add(road);
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(400, 2.4), M2(0x5f7a3a, 1)); grass.rotation.x = -Math.PI/2; grass.position.set(0, 0.015, -10.2); g.add(grass);
+  const white = M2(0xf2f2ee, 0.6);
+  const line = (z, w = 0.15) => { const l = new THREE.Mesh(new THREE.PlaneGeometry(400, w), white); l.rotation.x = -Math.PI/2; l.position.set(0, 0.02, z); g.add(l); };
+  [2.0, -8.5, -11.9, -22.4].forEach(z => line(z, 0.2)); // lignes de rive continues
+  // lignes pointillées longues des voies
+  [-1.75, -5.25, -15.4, -18.9].forEach(z => { for (let x=-80;x<80;x+=13){ const d = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 0.15), white); d.rotation.x = -Math.PI/2; d.position.set(x, 0.021, z); g.add(d); scrollable(g, d, 156); } });
+  // muret béton central (GBA) et glissières de rive
+  const gba = new THREE.Mesh(new THREE.BoxGeometry(400, 0.8, 0.45), M2(0xb9b6ae, 0.9)); gba.position.set(0, 0.4, -10.2); gba.castShadow = true; g.add(gba);
+  const railTex = canvasTex(64, 32, (x, W, H) => { x.fillStyle = '#b8bcc2'; x.fillRect(0, 0, W, H); x.fillStyle = 'rgba(0,0,0,.18)'; x.fillRect(0, H*0.45, W, 4); });
+  [4.7, -23.7].forEach(z => { const r = new THREE.Mesh(new THREE.BoxGeometry(160, 0.32, 0.06), new THREE.MeshStandardMaterial({map:railTex, roughness:0.35, metalness:0.7})); r.position.set(0, 0.62, z); g.add(r); scrollable(g, r, 160);
+    for (let x=-78;x<80;x+=4){ const p = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.08), M2(0x8a8f96, 0.4, 0.7)); p.position.set(x, 0.35, z + Math.sign(z)*0.06); g.add(p); scrollable(g, p, 160); } });
+  // grand portique de signalisation bleu au-dessus de notre sens
+  const panelTex = (lines, w = 512, h = 256) => canvasTex(w, h, (x, W, H) => { x.fillStyle = '#1f4fa8'; x.fillRect(0, 0, W, H); x.strokeStyle = '#fff'; x.lineWidth = 6; x.strokeRect(8, 8, W - 16, H - 16);
+    x.fillStyle = '#fff'; x.textBaseline = 'middle'; lines.forEach(([t, d, y, sz]) => { x.font = `700 ${sz || 44}px Archivo, Arial`; x.textAlign = 'left'; x.fillText(t, 30, y); if (d){ x.textAlign = 'right'; x.fillText(d, W - 30, y); } }); });
+  { const P = new THREE.Group(), gray = M2(0x9a9ea4, 0.4, 0.7);
+    [4.9, -9.0].forEach(z => { const l = new THREE.Mesh(new THREE.BoxGeometry(0.35, 7, 0.35), gray); l.position.set(0, 3.5, z); P.add(l); });
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 14.2), gray); beam.position.set(0, 6.6, -2.05); P.add(beam);
+    [[-5.2, [['A10', null, 70, 56], ['PARIS', '120 km', 160, 50]]], [0.6, [['A10', null, 70, 56], ['ORLÉANS', '12 km', 160, 46]]]].forEach(([z, lines]) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2.6), new THREE.MeshStandardMaterial({map:panelTex(lines), roughness:0.6, side:THREE.DoubleSide})); m.position.set(-0.25, 5.2, z); m.rotation.y = -Math.PI/2; P.add(m); }); // face aux véhicules qui arrivent
+    P.position.set(18, 0, 0); shadowAll(P); g.add(P); scrollable(g, P, 156); }
+  // panneaux de bord de route : aire de repos (bleu), animation touristique (marron), borne d'appel d'urgence
+  { const mk = (tex, w, h, x, z) => { const S = new THREE.Group();
+      [-w/3, w/3].forEach(dx => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.6, 8), M2(0x9a9ea4, 0.4, 0.7)); p.position.set(0, 1.3, dx); S.add(p); });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({map:tex, side:THREE.DoubleSide})); m.position.set(-0.06, 2.6 + h/2 - 0.3, 0); m.rotation.y = -Math.PI/2; S.add(m);
+      S.position.set(x, 0, z); shadowAll(S); g.add(S); scrollable(g, S, 156); return S; };
+    mk(panelTex([['AIRE DE', null, 80, 50], ['LA BEAUCE', '2 km', 170, 50]]), 2.6, 1.3, -22, 6.0);
+    mk(canvasTex(512, 256, (x, W, H) => { x.fillStyle = '#7a4a2a'; x.fillRect(0, 0, W, H); x.strokeStyle = '#fff'; x.lineWidth = 6; x.strokeRect(8, 8, W - 16, H - 16); x.fillStyle = '#fff'; x.font = '700 42px Archivo, Arial'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText('Cathédrale', W/2, 95); x.fillText('de Chartres', W/2, 160); }), 2.6, 1.3, 48, 6.0);
+    for (let i=0;i<3;i++){ const sos = new THREE.Group(); rb(0.32, 0.55, 0.22, 0.03, M2(0xe08a1e, 0.5), 0, 0.85, 0, sos); const p = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 6), M2(0x9a9ea4)); p.position.y = 0.3; sos.add(p);
+      sos.position.set(-60 + i*52, 0, 5.4); shadowAll(sos); g.add(sos); scrollable(g, sos, 156); } }
+  // circulation : nos voisins de voie et le sens opposé
+  [[-12, -3.5, 0x9aa3ad, 'berline'], [14, -7.0, 0x1b1d22, 'berline'], [-36, -3.5, 0xf2f2f2, 'utilitaire'], [30, 0.0, 0x8f1d22, 'camion'], [-58, 0.0, 0x2f5d8a, 'camion']].forEach(([x, z, c, k]) => {
+    const v = genericCar(c, k); v.position.set(x, 0, z); g.add(v); scrollable(g, v, 156); });
+  [[-6, -14, 0xd5202a], [22, -17.5, 0xe4e4e0], [40, -14, 0x2f5d8a], [-30, -21, 0x5a5d62]].forEach(([x, z, c], i) => {
+    const v = i === 3 ? genericCar(0x3a6e3a, 'camion') : genericCar(c, i%2 ? 'utilitaire' : 'berline'); v.position.set(x, 0, z); v.rotation.y = Math.PI; g.add(v); scrollable(g, v, 156); });
+  // un autre équipage qui rentre aussi, devant nous
+  { const v = mini4L(0xd5202a, {rim:0xf2f2f2, load:0x2f5d2a}); v.position.set(-22, 0, -3.5); g.add(v); scrollable(g, v, 156); }
+  // peupliers en rangées et haies
+  const poplar = () => { const T = new THREE.Group(); const t = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 2, 6), M2(0x5d4632)); t.position.y = 1; T.add(t);
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.75, 9, 8), M2(0x4f6b36, 0.95)); c.position.y = 6; T.add(c); return shadowAll(T); };
+  for (let i=0;i<22;i++){ const p = poplar(); p.position.set(-80 + i*7.4, 0, 14 + (i%2)*0.6); g.add(p); scrollable(g, p, 162.8); }
+  for (let i=0;i<12;i++){ const p = poplar(); p.position.set(-70 + i*12, 0, -32 - (i%3)); p.scale.setScalar(0.85); g.add(p); scrollable(g, p, 144); }
+  // ferme et clocher au loin, éoliennes sur la plaine
+  { const F = new THREE.Group(); rb(10, 4, 6, 0.1, M2(0xd8ccb4), 0, 2, 0, F); const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 4.4, 3, 4, 1), M2(0x8f3a2a)); roof.rotation.y = Math.PI/4; roof.scale.set(1.6, 1, 1); roof.position.y = 5.4; F.add(roof);
+    rb(7, 5, 5, 0.05, M2(0x6f6a62), 12, 2.5, 0, F); F.position.set(-30, 0, 52); g.add(F); }
+  { const C = new THREE.Group(); rb(4, 7, 7, 0.05, M2(0xd8ccb4), 0, 3.5, 0, C); const tower = new THREE.Mesh(new THREE.BoxGeometry(2.6, 12, 2.6), M2(0xd8ccb4)); tower.position.set(-3, 6, 0); C.add(tower);
+    const spire = new THREE.Mesh(new THREE.ConeGeometry(2, 6, 4), M2(0x5a5d62)); spire.rotation.y = Math.PI/4; spire.position.set(-3, 15, 0); C.add(spire); C.position.set(40, 0, -70); g.add(C); }
+  for (let i=0;i<6;i++){ const W = new THREE.Group(), wht = M2(0xf2f2f0, 0.5);
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.0, 40, 10), wht); mast.position.y = 20; W.add(mast);
+    const nac = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.6, 1.6), wht); nac.position.set(0.6, 40, 0); W.add(nac);
+    for (let k=0;k<3;k++){ const b = new THREE.Mesh(new THREE.BoxGeometry(0.4, 22, 1.0), wht); const a = k*Math.PI*2/3 + i; b.position.set(-1.2, 40 + Math.cos(a)*11, Math.sin(a)*11); b.rotation.x = -a; W.add(b); }
+    W.position.set(-90 + i*36, 0, -100 - (i%2)*20); W.rotation.y = Math.PI/2; g.add(W); }
+}
+
 const DECORS = {
   studio: {name:'Showroom', desc:'Garage sombre, arcs lumineux et sol miroir : parfait pour les reflets', garage:true,
     sky:[0x050506, 0x0a0a0c, 0x0a0a0c], fog:[0x0a0a0c, 40, 120], hemi:[0xfff4e6, 0x1c1c20, 0.5], sun:[0xfff4e6, 1.5, [0.8,10,1.6]], env:1.1, exposure:1.05, night:false},
@@ -2022,6 +2108,8 @@ const DECORS = {
     sky:[0x3f78c0, 0xcfe0ee, 0x9a6f4f], fog:[0xcbd8e2, 50, 200], hemi:[0xeaf2fb, 0x8a5f44, 0.8], sun:[0xfff3df, 2.7, [5,9,7]], env:0.75, exposure:1.0, night:false, dust:0xa98466},
   marrakech: {name:'Arrivée à Marrakech', desc:'Les remparts ocre, les palmiers et l\'arche d\'arrivée',
     sky:[0x5a7fc0, 0xf3c9a0, 0xc99a72], fog:[0xeec9a6, 45, 180], hemi:[0xfff0dc, 0xa8683e, 0.75], sun:[0xffd9a8, 2.9, [8,6,7]], env:0.75, exposure:1.05, night:false, dust:0xd0a580},
+  autoroute: {name:'Retour par l\'autoroute', desc:'La remontée vers Paris, entre champs, peupliers et éoliennes',
+    sky:[0x7f98b4, 0xdde3e8, 0x7d8f4e], fog:[0xd4dbe1, 45, 200], hemi:[0xe8eef4, 0x6f7a5a, 0.85], sun:[0xf6f2ea, 2.1, [6,9,5]], env:0.8, exposure:1.0, night:false},
 };
 // Trajet indicatif : les grandes étapes, chacune reliée à un décor
 const STAGES = [
@@ -2033,10 +2121,11 @@ const STAGES = [
   {decor:'bivouac', name:'Bivouac', note:'Les nuits dans le désert', date:'22 au 26/02', lat:30.35, lon:-5.85},
   {decor:'atlas', name:'Col du Tichka', note:'Le Haut Atlas', date:'26/02', lat:31.29, lon:-7.38},
   {decor:'marrakech', name:'Marrakech', note:'Ligne d\'arrivée', date:'26/02', lat:31.63, lon:-8.0},
+  {decor:'autoroute', name:'Retour à Paris', note:'La remontée par l\'Espagne et les autoroutes françaises', date:'03/03', lat:48.86, lon:2.35, key:'retour', ret:true},
 ];
 // dates affichées à côté du titre quand on est dans un décor d'étape (2027)
 const DECOR_DATES = {ville:'Départ · 15 février', biarritz:'Village départ · 17 février', gibraltar:'Algésiras et détroit · 19 au 21 février',
-  desert:'Désert · 22 au 26 février', bivouac:'Bivouac · 22 au 26 février', atlas:'Col du Tichka · 26 février', marrakech:'Arrivée · 26 février'};
+  desert:'Désert · 22 au 26 février', bivouac:'Bivouac · 22 au 26 février', atlas:'Col du Tichka · 26 février', marrakech:'Arrivée · 26 février', autoroute:'Retour à Paris · 3 mars'};
 let currentDecor = 'studio', lightsOn = false, warnOn = false;
 function setLights(on){
   lightsOn = on;
@@ -2366,15 +2455,16 @@ function buildStatic(){
     ];
     const pid = s => s.key || s.decor;
     const left = new Set(['gibraltar', 'atlas', 'marrakech']);
-    const off = {desert:[11, 0], bivouac:[8, 19], atlas:[-6, 21], marrakech:[-11, -10], detroit:[11, 12], gibraltar:[-11, -2]};
+    const off = {retour:[-11, 4], desert:[11, 0], bivouac:[8, 19], atlas:[-6, 21], marrakech:[-11, -10], detroit:[11, 12], gibraltar:[-11, -2]};
     document.getElementById('routeMap').innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;border:1px solid var(--line);border-radius:12px;background:#0a1734">
       ${COUNTRIES.map(([n, c]) => `<polygon points="${poly(c)}" fill="${n ? '#1a2550' : '#151f44'}" stroke="#2c3a72" stroke-width="1" stroke-linejoin="round"/>`).join('')}
       <text x="${px(-9.6)}" y="${py(45.2)}" class="rm-sea">ATLANTIQUE</text><text x="${px(2.4)}" y="${py(38.6)}" class="rm-sea">MÉDITERRANÉE</text>
       <text x="${px(3.4)}" y="${py(45.7)}" class="rm-c">FRANCE</text><text x="${px(-3.8)}" y="${py(40.2)}" class="rm-c">ESPAGNE</text><text x="${px(-5.2)}" y="${py(33.3)}" class="rm-c">MAROC</text>
       <text x="${px(-8.1)}" y="${py(39.8)}" class="rm-c rm-c2">PORT.</text><text x="${px(1.6)}" y="${py(31.0)}" class="rm-c rm-c2">ALGÉRIE</text>
-      <polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="#e4b350" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>
+      <polyline points="${poly([[-8.0,31.63],[-6.6,33.9],[-5.5,35.7],[-4.2,37.4],[-3.4,40.2],[-1.0,42.6],[0.2,44.9],[1.4,47.2],[2.35,48.86]])}" fill="none" stroke="#9fb4ff" stroke-width="1.6" stroke-dasharray="2 4" stroke-linejoin="round" opacity=".75"/>
+      <polyline points="${pts.filter((p, i) => !STAGES[i].ret).map(p => p.join(',')).join(' ')}" fill="none" stroke="#e4b350" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>
       ${STAGES.map((s, i) => { const k = pid(s), o = off[k] || [left.has(s.decor) ? -11 : 11, 4], anchor = o[0] < 0 ? 'end' : 'start';
-        return `<g data-stage="${s.decor}" class="rm-stop"><circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="${k === 'detroit' ? 4 : 5.5}"/><text x="${pts[i][0] + o[0]}" y="${pts[i][1] + o[1]}" text-anchor="${anchor}">${s.name}<tspan class="rm-d" x="${pts[i][0] + o[0]}" dy="12">${s.date}</tspan></text></g>`; }).join('')}
+        return `<g data-stage="${s.decor}" class="rm-stop">${s.ret ? '' : `<circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="${k === 'detroit' ? 4 : 5.5}"/>`}<text x="${pts[i][0] + o[0]}" y="${pts[i][1] + o[1]}" text-anchor="${anchor}">${s.name}<tspan class="rm-d" x="${pts[i][0] + o[0]}" dy="12">${s.date}</tspan></text></g>`; }).join('')}
     </svg>`;
     const sl = document.getElementById('stageList');
     STAGES.forEach((s, i) => { const c = document.createElement('div'); c.className = 'card'; c.dataset.stage = s.decor; c.style.marginTop = i ? '' : '10px';

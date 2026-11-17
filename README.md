@@ -10,7 +10,7 @@ Il sert à montrer aux sponsors ce que donnerait leur logo sur la voiture :
 - équipements en option : galerie, roue de secours, jerricans, plaques, malle, pelle, phares longue portée, rampe LED, tandem sur le toit
 - portières, capot et porte arrière ouvrants, avec le moteur et le chargement solidaire
 - mode « En route » : roues qui tournent, décor qui défile, poussière
-- 8 décors qui suivent le trajet : showroom, Paris, Biarritz, détroit de Gibraltar, dunes, bivouac de nuit, col du Tichka, Marrakech
+- 9 décors qui suivent le trajet : showroom, Paris, Biarritz, détroit de Gibraltar, dunes, bivouac de nuit, col du Tichka, Marrakech, autoroute du retour
 - onglet Trajet : carte stylisée Paris → Marrakech (tracé indicatif)
 - intro cinématique, phares, warnings, vues rapides et capture d'image
 
