@@ -80,6 +80,19 @@
   .rm-stop.on circle{fill:#c9ef1f;stroke:#c9ef1f}
   .rm-stop.on text{fill:#c9ef1f}
   .tabs button{padding-left:2px;padding-right:2px}
+  .quick{position:fixed;left:16px;top:92px;z-index:5;display:flex;flex-direction:column;gap:8px}
+  .qbtn{display:flex;align-items:center;gap:10px;background:var(--gold);color:var(--navy);border:0;border-radius:14px;padding:10px 16px 10px 12px;cursor:pointer;text-align:left;box-shadow:0 8px 24px rgba(0,0,0,.35);font-family:Archivo,sans-serif;transition:transform .15s}
+  .qbtn:hover{transform:translateY(-2px)}
+  .qbtn .qi{font-size:22px;line-height:1}
+  .qbtn b{display:block;font:400 17px "Alfa Slab One",serif}
+  .qbtn small{display:block;font-size:11.5px;font-weight:600;opacity:.8}
+  body.mapBig .quick{display:none}
+  .bm-intro{font-size:13.5px;line-height:1.5;color:#e2e5f0;margin:0 0 12px}
+  .bm-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .bm-stats div{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:rgba(228,179,80,.06)}
+  .bm-stats b{display:block;font:400 22px "Alfa Slab One",serif;color:var(--gold2)}
+  .bm-stats span{font-size:11.5px;color:var(--muted);line-height:1.3;display:block;margin-top:2px}
+  .bm-src{font-size:11px;color:var(--muted);margin:10px 0 0}
   .mapWrap{position:relative}
   .mapOpen{position:absolute;right:8px;top:8px;padding:5px 9px;font-size:12px;background:rgba(18,29,69,.9)}
   #bigMap{position:fixed;inset:0;z-index:15;background:radial-gradient(ellipse at 30% 20%,#14225a,#070d24 70%);display:none;flex-direction:column;padding:18px 22px 16px}
@@ -92,7 +105,7 @@
   .bm-body{flex:1;display:flex;gap:18px;min-height:0}
   .bm-map{flex:1;min-width:0;display:flex;justify-content:center}
   .bm-map svg{max-width:100%}
-  .bm-list{width:330px;overflow-y:auto;padding-bottom:250px}
+  .bm-list{width:360px;overflow-y:auto;padding-bottom:250px;padding-right:4px}
   .bm-list .card b em{font-style:normal;color:var(--gold2);font-weight:600;float:right}
   .bm-list .card.halt{opacity:.7;cursor:default;border-style:dashed}
   .bm-hint{font-size:12px;color:var(--muted);margin-top:8px}
@@ -117,6 +130,9 @@
     .panel{left:8px;right:8px;top:auto;bottom:8px;width:auto;height:46vh}
     .views{bottom:calc(46vh + 14px);max-width:none;right:0;left:0;flex-wrap:nowrap;overflow-x:auto;padding:0 8px;scrollbar-width:none}
     .views .chip{flex:none}
+    .quick{top:74px;left:8px}
+    .qbtn{padding:7px 12px 7px 9px}
+    .qbtn b{font-size:14px}
     .brand p{font-size:11px;max-width:250px}
     .brand img{width:46px;height:46px}.brand h1{font-size:16px}
     .hint{display:none}
@@ -141,6 +157,7 @@
     <p>Équipage 435 · 4L F4 1.1 de 1983 · Paris → Marrakech · 15 février au 3 mars 2027 (retour à Paris)</p>
   </div>
 </div>
+<div class="quick"><button class="qbtn" id="routeBtn"><span class="qi">🧭</span><span><b>Voir le trajet</b><small>Paris → Marrakech · 6 000 km</small></span></button></div>
 <div class="hint" id="hint">Fais tourner la 4L · clique sur un emplacement pour le sélectionner</div>
 
 <div class="views" id="views">
@@ -214,7 +231,20 @@
 
 <div id="bigMap" aria-hidden="true">
   <div class="bm-head"><h2>Paris → Marrakech · 4L Trophy 2027</h2><button class="btn gold" id="mapClose">Fermer la carte</button></div>
-  <div class="bm-body"><div class="bm-map" id="bigMapSvg"></div><div class="bm-list" id="bigMapList"></div></div>
+  <div class="bm-body"><div class="bm-map" id="bigMapSvg"></div><div class="bm-list">
+    <p class="bm-intro">Du 15 février au 3 mars 2027, notre 4L de 1983 traverse la France, l'Espagne et le Maroc. Pas de GPS : un road book et une boussole. Le classement ne récompense pas la vitesse mais le moins de kilomètres parcourus entre les points de contrôle. Dans le désert, on dort au bivouac et on répare nous-mêmes.</p>
+    <div class="bm-stats">
+      <div><b>≈ 6 000</b><span>km aller-retour</span></div>
+      <div><b>17</b><span>jours sur la route</span></div>
+      <div><b>3</b><span>pays et une traversée en ferry</span></div>
+      <div><b>0</b><span>GPS : road book et boussole</span></div>
+      <div><b>614 km</b><span>d'étape marathon en autonomie (édition 2025)</span></div>
+      <div><b>43 ans</b><span>pour notre 4L F4, née en 1983</span></div>
+    </div>
+    <p class="bm-src">Le plus grand raid étudiant d'Europe : environ 1 500 équipages chaque année. Chiffres des éditions récentes, à titre indicatif.</p>
+    <h3>Les étapes</h3>
+    <div id="bigMapList"></div>
+  </div></div>
   <div class="bm-hint">Clique sur une étape : la 4L s'y rend dans l'aperçu en bas à droite.</div>
 </div>
 <div class="modal" id="shotModal">
@@ -2525,6 +2555,7 @@ function buildStatic(){
   document.getElementById('warnBtn').onclick = () => setWarn(!warnOn);
   document.getElementById('shotBtn').onclick = capture;
   document.getElementById('mapOpen').onclick = () => setBigMap(true);
+  document.getElementById('routeBtn').onclick = () => setBigMap(true);
   document.getElementById('mapClose').onclick = () => setBigMap(false);
   addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('mapBig')) setBigMap(false); });
   document.getElementById('shotClose').onclick = () => document.getElementById('shotModal').classList.remove('on');
