@@ -4,7 +4,7 @@ Configurateur 3D de la Renault 4 F4 de 1983 de l'équipage 435 du 4L Trophy 2027
 
 Il sert à montrer aux sponsors ce que donnerait leur logo sur la voiture :
 
-- 26 emplacements sponsors cliquables (avant, côtés, arrière, toit), avec leurs dimensions et un tarif indicatif, plus 3 emplacements réservés à l'organisation
+- 22 emplacements sponsors cliquables (capot, côtés, arrière, toit), avec leurs dimensions et un tarif indicatif ; les portières, le bandeau de pare-brise et le bas de porte arrière gauche sont réservés à l'organisation du 4L Trophy
 - import d'un logo ou saisie d'un nom, total du pack, récapitulatif à copier et message « Je suis intéressé » prêt à envoyer
 - 4 livrées, couleurs de carrosserie et d'accents
 - équipements en option : galerie, roue de secours, jerricans, plaques, malle, pelle, phares longue portée, rampe LED, tandem sur le toit

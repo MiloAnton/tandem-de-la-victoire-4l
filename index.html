@@ -707,15 +707,15 @@ const ZONES = [];
     const wb = new THREE.Vector2(WS_BASE, BELT), wt = new THREE.Vector2(WS_TOP[0], WS_TOP[1]);
     const wd = wt.clone().sub(wb).normalize(), n = new THREE.Vector2(wd.y, -wd.x);
     const c = wt.clone().addScaledVector(wd, -0.075).addScaledVector(n, 0.012);
-    [[1,'d','droit'],[-1,'g','gauche']].forEach(([s,suf,lab]) => Z({id:'bandeau-'+suf, name:'Bandeau de pare-brise '+lab, group:'Avant', w:0.52, h:0.10, price:200, tier:'Le classique du rallye',
-      center:[c.x, c.y, s*0.27], x:[0,0,-1], y:[wd.x, wd.y, 0], view:'front34'}));
+    Z({id:'bandeau', name:'Bandeau de pare-brise', group:'Avant', w:1.08, h:0.10, price:0, tier:'Réservé à l\'organisation', reserved:'bandeau',
+      center:[c.x, c.y, 0], x:[0,0,-1], y:[wd.x, wd.y, 0], view:'front34'});
   }
   // côtés
   const sideSpecs = [
     ['flanc-av', 'Flanc haut avant', 0.40, 0.34, 400, -0.97, 1.30, BOX_SIDE, 'Emplacement phare'],
     ['flanc-ar', 'Flanc haut arrière', 0.40, 0.34, 400, -1.39, 1.30, BOX_SIDE, 'Emplacement phare'],
-    ['porte', 'Portière', 0.46, 0.32, 400, -0.03, 0.74, CAB_SIDE, ''],
-    ['orga', 'Portière avant', 0.36, 0.32, 0, 0.42, 0.74, CAB_SIDE, 'Réservé à l\'organisation', true],
+    ['orga', 'Plaque équipage', 0.34, 0.34, 0, 0.42, 0.74, CAB_SIDE, 'Réservé à l\'organisation', 'plaque'],
+    ['porte', 'Portière, partenaires 4L Trophy', 0.46, 0.32, 0, -0.03, 0.74, CAB_SIDE, 'Réservé à l\'organisation', 'trophy'],
     ['toitc', 'Côté du toit surélevé', 0.96, 0.055, 250, -1.12, 1.595, 0.73, ''],
     ['bas', 'Bas de caisse', 0.30, 0.34, 200, -0.60, 0.74, BOX_SIDE, ''],
     ['roue', 'Dessus de roue arrière', 0.62, 0.15, 200, -1.15, 0.855, BOX_SIDE, ''],
@@ -729,7 +729,7 @@ const ZONES = [];
   Z({id:'arriere', name:'Bandeau de porte arrière', group:'Arrière', w:1.10, h:0.19, price:400, tier:'', center:[R, 1.06, 0], x:RX, y:RY, view:'rear34'});
   [[1,'droit','d'],[-1,'gauche','g']].forEach(([s,lab,suf]) => {
     Z({id:'hautar-'+suf, name:'Haut de toit arrière '+lab, group:'Arrière', w:0.48, h:0.055, price:300, tier:'', center:[-1.746, 1.598, s*0.27], x:RX, y:RY, view:'rear34'});
-    Z({id:'basar-'+suf, name:'Bas de porte arrière '+lab, group:'Arrière', w:0.30, h:0.24, price:150, tier: s < 0 ? 'Réservé à l\'organisation' : '', reserved: s < 0, center:[R, 0.78, s*0.42], x:RX, y:RY, view:'rear34'});
+    Z({id:'basar-'+suf, name:'Bas de porte arrière '+lab, group:'Arrière', w:0.30, h:0.24, price:150, tier: s < 0 ? 'Réservé à l\'organisation' : '', reserved: s < 0 && 'plaque', center:[R, 0.78, s*0.42], x:RX, y:RY, view:'rear34'});
   });
   // toit : quatre quarts
   [[-0.93,'avant'],[-1.41,'arrière']].forEach(([x,fa]) => [[1,'droit'],[-1,'gauche']].forEach(([s,lab]) =>
@@ -750,9 +750,23 @@ ZONES.forEach(z => {
 });
 
 // emplacements réservés à l'organisation : logo 4L Trophy
-const trophyImg = new Image();
-trophyImg.onload = () => ZONES.filter(z => z.reserved).forEach(z => { z.content = {img:trophyImg}; drawZone(z); });
-trophyImg.src = 'logo-4l-trophy.png';
+const trophyImg = new Image(), plaqueImg = new Image();
+trophyImg.onload = () => ZONES.filter(z => z.reserved === 'trophy').forEach(z => { z.content = {img:trophyImg}; drawZone(z); });
+plaqueImg.onload = () => ZONES.filter(z => z.reserved === 'plaque').forEach(z => { z.content = {img:plaqueImg}; drawZone(z); });
+trophyImg.src = 'logo-4l-trophy.png'; plaqueImg.src = 'plaque-equipage-435.png';
+{ // bandeau de pare-brise de l'organisation
+  const z = ZONES.find(z => z.reserved === 'bandeau');
+  z.content = {draw:(x, W, H) => {
+    x.fillStyle = '#d5202a'; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#ffffff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = `800 ${H*0.68}px Archivo, Arial`; if ('letterSpacing' in x) x.letterSpacing = `${H*0.06}px`;
+    x.fillText('4L TROPHY 2027', W/2, H*0.54);
+    if ('letterSpacing' in x) x.letterSpacing = '0px';
+    x.strokeStyle = '#ffffff'; x.lineWidth = H*0.05;
+    [H*0.62, W - H*0.62].forEach(cx => { x.beginPath(); x.arc(cx, H/2, H*0.32, 0, Math.PI*2); x.stroke(); });
+  }};
+  document.fonts.load('800 40px Archivo').then(() => drawZone(z)).catch(()=>{});
+}
 
 // emplacements vendus : bloqués avec le logo du sponsor
 const SOLD = {
@@ -867,7 +881,8 @@ function drawZone(z){
   const c = z.canvas, x = c.getContext('2d'), W = c.width, H = c.height;
   x.clearRect(0,0,W,H);
   const ct = z.content;
-  if (ct){
+  if (ct && ct.draw) ct.draw(x, W, H);
+  else if (ct){
     if (ct.bg){ x.fillStyle = ct.bg; roundRect(x, 0, 0, W, H, Math.min(W,H)*0.08); x.fill(); }
     if (ct.img){
       const pad = Math.min(W,H)*(ct === z.content && z.sold ? 0.03 : 0.08);
@@ -1308,16 +1323,13 @@ function rallyStripes(on){
 const both = (id, content) => { setContent(id+'-d', content); setContent(id+'-g', content); };
 const LIVERIES = [
   {id:'actuelle', name:'Telle qu\'elle est', desc:'Bleu roi, liserés et jantes jaune fluo', paint:0x1f36b4, accent:0xc9ef1f, apply:()=>{}},
-  {id:'equipage', name:'Équipage 435', desc:'Le badge de l\'équipage sur les flancs, bandeau au nom de l\'équipe', paint:0x1f36b4, accent:0xc9ef1f, apply:()=>{
-    both('flanc-ar', {img:badgeImg});
-    setContent('bandeau-d', {text:'LE TANDEM', color:'#ffffff', bg:'rgba(18,29,69,.92)'}); setContent('bandeau-g', {text:'DE LA VICTOIRE', color:'#ffffff', bg:'rgba(18,29,69,.92)'});
+  {id:'equipage', name:'Équipage 435', desc:'Le badge et le nom de l\'équipage sur les flancs', paint:0x1f36b4, accent:0xc9ef1f, apply:()=>{
+    both('flanc-ar', {img:badgeImg}); both('flanc-av', {text:'LE TANDEM DE LA VICTOIRE', color:'#ffffff', bg:'rgba(18,29,69,.92)'});
   }},
   {id:'rallye', name:'Bandes rallye', desc:'Deux bandes fluo du capot à la porte arrière', paint:0x1f36b4, accent:0xc9ef1f, stripes:true, apply:()=>{
-    setContent('bandeau-d', {text:'4L TROPHY', color:'#121d45', bg:'#c9ef1f'}); setContent('bandeau-g', {text:'2027', color:'#121d45', bg:'#c9ef1f'});
   }},
   {id:'sable', name:'Sable et or', desc:'Une teinte désert, accents bleu nuit, rappel du logo', paint:0xd8b779, accent:0x121d45, apply:()=>{
     both('flanc-ar', {img:badgeImg});
-    setContent('bandeau-d', {text:'LE TANDEM', color:'#f3d48a', bg:'#121d45'}); setContent('bandeau-g', {text:'DE LA VICTOIRE', color:'#f3d48a', bg:'#121d45'});
   }},
 ];
 let currentLivery = 'actuelle';
@@ -1333,7 +1345,7 @@ function setLivery(id){
 let liveryMode = false;
 function setContent(id, content){
   const z = ZONES.find(z=>z.id===id);
-  if (z.reserved || z.sold) return;
+  if (!z || z.reserved || z.sold) return;
   if (z.content && !z.content.livery && liveryMode) return; // ne pas écraser un sponsor
   z.content = content ? {...content, livery: liveryMode} : null;
 }
@@ -1470,7 +1482,7 @@ function renderLists(){
     renderPack(); return;
   }
   if (selected && selected.reserved){
-    detail.innerHTML = `<h2 style="margin-top:0">${selected.name}</h2><p class="lead" style="margin:0">Emplacement réservé à l'organisation du 4L Trophy : son logo y est obligatoire.</p>`;
+    detail.innerHTML = `<h2 style="margin-top:0">${selected.name}</h2><p class="lead" style="margin:0">Emplacement réservé à l'organisation du 4L Trophy : elle y colle elle-même ses stickers (numéro d'équipage, partenaires, bandeau) au village départ.</p>`;
     renderPack(); return;
   }
   if (!selected){
