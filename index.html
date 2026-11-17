@@ -2481,7 +2481,7 @@ const STAGES = [
 // dates affichées à côté du titre quand on est dans un décor d'étape (2027)
 const DECOR_DATES = {ville:'Départ · 15 février', biarritz:'Village départ · 17 février', gibraltar:'Algésiras et détroit · 19 au 21 février',
   desert:'Désert · 22 au 26 février', bivouac:'Bivouac · 22 au 26 février', atlas:'Col du Tichka · 26 février', marrakech:'Arrivée · 26 février', autoroute:'Retour à Paris · 3 mars'};
-let currentDecor = 'studio', lightsOn = false, warnOn = false;
+let currentDecor = 'studio', lightsOn = false, warnOn = false, warnT0 = null, welcomeDone = false, welcomeBlink = false;
 function setLights(on){
   lightsOn = on;
   headlights.forEach(l => l.intensity = on ? (DECORS[currentDecor].night ? 38 : 22) : 0);
@@ -2490,7 +2490,7 @@ function setLights(on){
   document.getElementById('lightsBtn').classList.toggle('on', on);
 }
 function setWarn(on){
-  warnOn = on; if (!on) M.orange.emissiveIntensity = 0;
+  warnOn = on; warnT0 = null; if (!on) M.orange.emissiveIntensity = 0;
   document.getElementById('warnBtn').classList.toggle('on', on);
 }
 function setDecor(id){
@@ -2630,7 +2630,16 @@ function updateIntro(dt){
   if (!lightsOn && intro.t > 1.4 && intro.t < intro.dur - 1.2) setLights(true);
   if (k >= 1) endIntro();
 }
-function endIntro(){ if (!intro) return; intro = null; setLights(DECORS[currentDecor].night); }
+function endIntro(){ if (!intro) return; intro = null; setLights(DECORS[currentDecor].night); welcomeWarn(); }
+// petit coucou des warnings à l'arrivée : trois clignotements, une seule fois
+function welcomeWarn(){
+  if (welcomeDone) return; welcomeDone = true;
+  setTimeout(() => {
+    if (warnOn) return;
+    welcomeBlink = true; setWarn(true); if (typeof wake === 'function') wake(2500);
+    setTimeout(() => { if (welcomeBlink) setWarn(false); welcomeBlink = false; }, 2000);
+  }, 350);
+}
 
 function goView(name){
   const v = VIEWS[name]; if (!v) return;
@@ -2850,7 +2859,7 @@ function buildStatic(){
   document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { if (driving) setDrive(false); setOpen(b.dataset.open, !b.classList.contains('on')); });
   document.getElementById('driveBtn').onclick = () => setDrive(!driving);
   document.getElementById('lightsBtn').onclick = () => setLights(!lightsOn);
-  document.getElementById('warnBtn').onclick = () => setWarn(!warnOn);
+  document.getElementById('warnBtn').onclick = () => { welcomeBlink = false; setWarn(!warnOn); };
   document.getElementById('shotBtn').onclick = capture;
   document.getElementById('mapOpen').onclick = () => setBigMap(true);
   document.getElementById('routeBtn').onclick = () => setBigMap(true);
@@ -2965,7 +2974,7 @@ function loop(){
     const f = decorGroups.bivouac.children.find(c => c.userData && c.userData.flame);
     if (f) f.userData.flame.scale.set(1, 1 + Math.sin(t*11)*0.12, 1);
   }
-  if (warnOn) M.orange.emissiveIntensity = (t*1.4 % 1) < 0.5 ? 3.5 : 0;
+  if (warnOn){ if (warnT0 === null) warnT0 = t; M.orange.emissiveIntensity = ((t - warnT0)*1.4 % 1) < 0.5 ? 3.5 : 0; }
   const moved = controls.update();
   // rendu à la demande : on ne redessine que si quelque chose bouge ou vient de changer
   const animating = moved || intro || tween || controls.autoRotate || speed > 0 || driving || warnOn
