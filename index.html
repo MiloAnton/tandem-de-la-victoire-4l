@@ -223,11 +223,11 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-let awakeUntil = 0;
+let awakeUntil = 0, garageMirror = null, garageVeil = null;
 // garde le rendu actif un court instant après un changement (clic, saisie, texture chargée...)
 function wake(ms = 1200){ awakeUntil = Math.max(awakeUntil, performance.now() + ms); }
 ['pointerdown', 'pointerup', 'click', 'wheel', 'keydown', 'input', 'change', 'resize'].forEach(ev => addEventListener(ev, () => wake(), {capture:true, passive:true}));
-document.addEventListener('visibilitychange', () => wake());
+document.addEventListener('visibilitychange', () => { wake(); if (typeof lastFrameAt !== 'undefined') lastFrameAt = 0; });
 document.fonts.addEventListener?.('loadingdone', () => wake());
 THREE.DefaultLoadingManager.onLoad = () => wake();
 THREE.DefaultLoadingManager.onProgress = () => wake();
@@ -1067,9 +1067,9 @@ let garageEnv;
     d.rotation.x = Math.PI/2; d.position.y = CEIL-0.03; g.add(d);
   }
   // sol noir poli : vrai miroir, assombri par un voile
-  const mirror = new Reflector(new THREE.PlaneGeometry(RX, RZ), {textureWidth:1024, textureHeight:1024, clipBias:0.003});
+  const mirror = garageMirror = new Reflector(new THREE.PlaneGeometry(RX, RZ), {textureWidth:1024, textureHeight:1024, clipBias:0.003});
   mirror.rotation.x = -Math.PI/2; mirror.position.y = 0.001; g.add(mirror);
-  const veil = new THREE.Mesh(new THREE.PlaneGeometry(RX, RZ), new THREE.MeshBasicMaterial({color:0x050506, transparent:true, opacity:0.5, depthWrite:false}));
+  const veil = garageVeil = new THREE.Mesh(new THREE.PlaneGeometry(RX, RZ), new THREE.MeshBasicMaterial({color:0x050506, transparent:true, opacity:0.5, depthWrite:false}));
   veil.rotation.x = -Math.PI/2; veil.position.y = 0.003; g.add(veil);
   // plateau de présentation
   const disc = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 2.7, 0.02, 96), new THREE.MeshStandardMaterial({color:0x9c9a96, roughness:0.6}));
@@ -1350,6 +1350,7 @@ function setWarn(on){
 }
 function setDecor(id){
   currentDecor = id; const d = DECORS[id];
+  if (typeof perfHoldUntil !== 'undefined') perfHoldUntil = performance.now() + 2000; // compilation des nouveaux matériaux
   scene.environment = d.garage ? garageEnv : baseEnv;
   Object.entries(decorGroups).forEach(([k,g]) => g.visible = k === id);
   skyMat.uniforms.top.value.set(d.sky[0]); skyMat.uniforms.mid.value.set(d.sky[1]); skyMat.uniforms.bottom.value.set(d.sky[2]);
@@ -1696,6 +1697,43 @@ function capture(){
 }
 
 /* ---------- Boucle ---------- */
+/* ---------- Qualité adaptative ----------
+   On mesure le temps entre deux images rendues d'affilée. Si l'appareil peine (moins de ~40 images/s
+   en médiane), on descend d'un cran : densité de pixels, reflet du sol, ombres. */
+const DPR = Math.min(devicePixelRatio || 1, 2);
+const QUALITY = [
+  {name:'Maximale', pr:DPR,                 mirror:1024, shadow:2048},
+  {name:'Haute',    pr:Math.min(DPR, 1.5),  mirror:512,  shadow:2048},
+  {name:'Moyenne',  pr:Math.min(DPR, 1),    mirror:256,  shadow:1024},
+  {name:'Économe',  pr:Math.min(DPR, 0.75), mirror:0,    shadow:1024},
+];
+let quality = innerWidth < 820 ? 1 : 0, lastFrameAt = 0, perfSamples = [], perfHoldUntil = performance.now() + 3000;
+function applyQuality(q, announce){
+  quality = Math.max(0, Math.min(QUALITY.length - 1, q)); const Q = QUALITY[quality];
+  renderer.setPixelRatio(Q.pr); resize();
+  if (garageMirror){
+    garageMirror.visible = Q.mirror > 0;
+    if (Q.mirror) garageMirror.getRenderTarget().setSize(Q.mirror, Q.mirror);
+    garageVeil.material.opacity = Q.mirror ? 0.5 : 0.92;
+  }
+  if (sun.shadow.mapSize.x !== Q.shadow){ sun.shadow.mapSize.set(Q.shadow, Q.shadow); if (sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  perfSamples = []; perfHoldUntil = performance.now() + 2500; wake();
+  window.__quality = Q.name;
+  if (announce) toast('Qualité ajustée pour rester fluide');
+}
+function perfSample(){
+  const now = performance.now();
+  if (lastFrameAt && now > perfHoldUntil && !document.hidden){
+    perfSamples.push(now - lastFrameAt);
+    // on juge sur ~45 images, ou plus tôt si l'appareil est très lent (1,5 s cumulée d'images)
+    if (perfSamples.length >= 45 || (perfSamples.length >= 4 && perfSamples.reduce((a, b) => a + b, 0) > 1500)){
+      const med = [...perfSamples].sort((a, b) => a - b)[perfSamples.length >> 1];
+      perfSamples = [];
+      if (med > 25 && quality < QUALITY.length - 1) applyQuality(quality + 1, true);
+    }
+  }
+  lastFrameAt = now;
+}
 function resize(){
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false); camera.aspect = w/h;
@@ -1729,12 +1767,13 @@ function loop(){
   // rendu à la demande : on ne redessine que si quelque chose bouge ou vient de changer
   const animating = moved || intro || tween || controls.autoRotate || speed > 0 || driving || warnOn
     || currentDecor === 'bivouac' || Object.keys(open).some(k => open[k] !== openTarget[k]);
-  if (animating || performance.now() < awakeUntil){ renderer.render(scene, camera); window.__frames = (window.__frames || 0) + 1; }
+  if (animating || performance.now() < awakeUntil){ renderer.render(scene, camera); window.__frames = (window.__frames || 0) + 1; perfSample(); }
+  else lastFrameAt = 0;
   requestAnimationFrame(loop);
 }
 
 buildStatic();
-resize();
+applyQuality(quality);
 if (innerWidth < 820) camera.position.set(8.4, 3.2, 7.4);
 setDecor('studio');
 await Promise.race([badgeReady, new Promise(r=>setTimeout(r,1500))]);
@@ -1747,7 +1786,7 @@ document.getElementById('loading').style.opacity = 0;
 setTimeout(()=>document.getElementById('loading').remove(), 600);
 setTimeout(()=>{ const h = document.getElementById('hint'); if (h) h.style.opacity = 0; }, 6000);
 window.__ready = true;
-window.__api = {setOpen, setDrive, cam:(p,t)=>{endIntro();camera.position.set(...p);controls.target.set(...t);controls.update();}, extras, snap:(n)=>{goView(n); tween.t=0.999;}, goView, setDecor, setLivery, selectZone, toggleZones:()=>document.getElementById('zonesBtn').click()};
+window.__api = {applyQuality, setOpen, setDrive, cam:(p,t)=>{endIntro();camera.position.set(...p);controls.target.set(...t);controls.update();}, extras, snap:(n)=>{goView(n); tween.t=0.999;}, goView, setDecor, setLivery, selectZone, toggleZones:()=>document.getElementById('zonesBtn').click()};
 for (const k in window.__api){ const f = window.__api[k]; if (typeof f === 'function') window.__api[k] = (...a) => { wake(); return f(...a); }; }
 </script>
 </body>
