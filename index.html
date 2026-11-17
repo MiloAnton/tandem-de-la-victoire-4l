@@ -1637,6 +1637,369 @@ function palm(g, x, z, h = 6){
   archway(g, 'ARRIVÉE · MARRAKECH', 8, 0x8f2a22, '#f3d48a');
 }
 
+/* ---------- Détails des décors d'étape ----------
+   Éléments partagés (autres 4L d'équipages, barrières, fanions, arbres...) puis un bloc par décor.
+   Ce qui borde la route défile en mode « En route » (scrollable) ; le lointain reste fixe. */
+const matCache = {};
+const M2 = (color, rough = 0.85, metal = 0) => matCache[`${color}-${rough}-${metal}`] ||= new THREE.MeshStandardMaterial({color, roughness:rough, metalness:metal});
+const canvasTex = (w, h, draw, repeat) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; if (repeat){ t.wrapS = THREE.RepeatWrapping; t.repeat.set(repeat, 1); } t.anisotropy = 4; return t; };
+const shadowAll = (o, cast = true) => { o.traverse(m => { if (m.isMesh){ m.castShadow = cast; m.receiveShadow = true; } }); return o; };
+function rb(w, h, d, r, mat, x, y, z, P){ const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, r), mat); m.position.set(x, y, z); P.add(m); return m; }
+
+// une autre 4L F4 d'équipage, simplifiée (vue de loin)
+function mini4L(color, opts = {}){
+  const G = new THREE.Group(), body = M2(color, 0.35, 0.1), glass = M2(0x1d2a33, 0.15, 0.4), dark = M2(0x141518, 0.7), white = M2(0xf2f0ea, 0.6);
+  rb(2.1, 0.52, 1.44, 0.08, body, 0.75, 0.74, 0, G);          // avant et bas de cabine
+  rb(0.86, 0.46, 1.36, 0.05, glass, 0.15, 1.23, 0, G);        // cabine vitrée
+  [0.57, -0.27].forEach(x => rb(0.06, 0.46, 1.38, 0.02, body, x, 1.23, 0, G));
+  rb(0.94, 0.07, 1.42, 0.03, body, 0.15, 1.48, 0, G);         // pavillon
+  rb(1.55, 1.24, 1.5, 0.1, body, -1.05, 1.1, 0, G);           // caisse surélevée
+  rb(0.04, 0.22, 1.26, 0.02, dark, 1.81, 0.72, 0, G);         // calandre
+  [0.42, -0.42].forEach(z => { const h = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.04, 14), white); h.rotation.z = Math.PI/2; h.position.set(1.83, 0.72, z); G.add(h); });
+  const tire = M2(0x141414, 0.9), rim = M2(opts.rim || 0xd9d9d9, 0.5, 0.3);
+  [[1.17, 1], [1.17, -1], [-1.25, 1], [-1.25, -1]].forEach(([x, s]) => {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.18, 18), tire); t.rotation.x = Math.PI/2; t.position.set(x, 0.3, s*0.66); G.add(t);
+    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.19, 14), rim); r.rotation.x = Math.PI/2; r.position.set(x, 0.3, s*0.66); G.add(r);
+  });
+  [1, -1].forEach(s => { // stickers et plaque d'équipage
+    rb(0.5, 0.36, 0.02, 0.02, white, -1.0, 1.25, s*0.755, G);
+    rb(0.36, 0.22, 0.02, 0.02, M2(opts.sticker || 0xe4b350, 0.6), -1.5, 0.82, s*0.755, G);
+    rb(0.3, 0.3, 0.02, 0.02, white, 0.25, 0.72, s*0.725, G);
+    rb(0.3, 0.07, 0.025, 0.01, M2(0xd5202a, 0.6), 0.25, 0.85, s*0.726, G);
+  });
+  if (opts.rack !== false){ rb(1.6, 0.04, 1.3, 0.01, dark, -0.9, 1.82, 0, G); [-1.6, -0.2].forEach(x => rb(0.04, 0.12, 1.3, 0.01, dark, x, 1.76, 0, G));
+    if (opts.load) rb(0.7, 0.3, 0.6, 0.05, M2(opts.load, 0.8), -1.1, 1.99, 0.1, G); }
+  if (opts.lights){ [0.42, -0.42].forEach(z => { const l = new THREE.Mesh(new THREE.CircleGeometry(0.075, 14), new THREE.MeshBasicMaterial({color:0xfff2c8})); l.rotation.y = Math.PI/2; l.position.set(1.855, 0.72, z); G.add(l); }); }
+  return shadowAll(G);
+}
+// barrière de type Vauban (une seule plaque texturée, très légère)
+const vaubanTex = canvasTex(256, 128, (x, W, H) => {
+  x.clearRect(0, 0, W, H); x.fillStyle = '#b9bec4';
+  x.fillRect(0, 6, W, 8); x.fillRect(0, H - 22, W, 8); x.fillRect(0, 6, 8, H - 6); x.fillRect(W - 8, 6, 8, H - 6);
+  for (let i=26;i<W-10;i+=22) x.fillRect(i, 10, 4, H - 28);
+}, 1);
+function barrierLine(x0, x1, z, P, ry = 0){
+  const L = Math.abs(x1 - x0), t = vaubanTex.clone(); t.needsUpdate = true; t.wrapS = THREE.RepeatWrapping; t.repeat.set(L/2, 1);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(L, 1.1), new THREE.MeshStandardMaterial({map:t, alphaTest:0.5, side:THREE.DoubleSide, roughness:0.4, metalness:0.6}));
+  m.position.set((x0 + x1)/2, 0.55, z); m.rotation.y = ry; m.castShadow = true; P.add(m); return m;
+}
+// guirlande de fanions triangulaires
+function bunting(x0, x1, z, y, P, cols = ['#d5202a', '#f2f2f2', '#1f6fb4', '#e4b350', '#2f8f4a']){
+  const L = Math.abs(x1 - x0), n = Math.max(4, Math.round(L/0.5));
+  const t = canvasTex(Math.min(4096, n*48), 64, (x, W, H) => { x.clearRect(0, 0, W, H); x.strokeStyle = '#333'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, 4); x.lineTo(W, 4); x.stroke();
+    for (let i=0;i<n;i++){ const a = i*W/n; x.fillStyle = cols[i%cols.length]; x.beginPath(); x.moveTo(a + 4, 4); x.lineTo(a + W/n - 4, 4); x.lineTo(a + W/(2*n), H - 4); x.fill(); } });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(L, 0.42), new THREE.MeshBasicMaterial({map:t, transparent:true, alphaTest:0.3, side:THREE.DoubleSide}));
+  m.position.set((x0 + x1)/2, y, z); P.add(m); return m;
+}
+// arbre feuillu stylisé
+function leafyTree(h = 5, col = 0x4a7a3a){
+  const T = new THREE.Group();
+  const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, h*0.55, 7), M2(0x5d4632)); tr.position.y = h*0.275; T.add(tr);
+  [[0, h*0.72, 0, h*0.3], [0.35, h*0.6, 0.2, h*0.22], [-0.3, h*0.64, -0.25, h*0.24]].forEach(([x, y, z, r]) => {
+    const c = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), M2(col, 0.9)); c.position.set(x, y, z); T.add(c); });
+  return shadowAll(T);
+}
+// barnum de stand
+function canopy(col, w = 3){
+  const C = new THREE.Group(), pole = M2(0xdddddd, 0.4, 0.6);
+  [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([a, b]) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.3, 6), pole); p.position.set(a*w/2, 1.15, b*w/2); C.add(p); });
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(w*0.72, 0.9, 4), M2(col, 0.7)); roof.rotation.y = Math.PI/4; roof.position.y = 2.75; C.add(roof);
+  const val = new THREE.Mesh(new THREE.BoxGeometry(w, 0.25, w), M2(col, 0.7)); val.position.y = 2.2; C.add(val);
+  rb(w*0.7, 0.75, 0.6, 0.02, M2(0xf2f0ea, 0.7), 0, 0.375, w*0.3, C); // comptoir
+  return shadowAll(C);
+}
+
+// ---------- Paris : rue animée au départ ----------
+{
+  const g = decorGroups.ville;
+  // trottoir et façades de l'autre côté de la rue
+  const sw2 = new THREE.Mesh(new THREE.BoxGeometry(200, 0.15, 9), M2(0x9a958c)); sw2.position.set(0, 0.075, 11.3); sw2.receiveShadow = true; g.add(sw2);
+  const facadeTex2 = new THREE.CanvasTexture(makeFacade()); facadeTex2.colorSpace = THREE.SRGBColorSpace;
+  for (let i=-6;i<=6;i++){ const h = 15 + ((i+7)%3)*1.5;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(9.6, h, 8), [M2(0xd8ccb4), M2(0xd8ccb4), M2(0x5b6670), M2(0x5b6670), new THREE.MeshStandardMaterial({map:facadeTex2, roughness:0.9}), M2(0xd8ccb4)]);
+    b.position.set(i*9.8 + 4.9, h/2, 19.8); b.rotation.y = Math.PI; b.receiveShadow = true; g.add(b); scrollable(g, b, 127.4); }
+  // bordures de trottoir
+  [-4.0, 6.8].forEach(z => { const k = new THREE.Mesh(new THREE.BoxGeometry(200, 0.17, 0.25), M2(0xc9c4ba)); k.position.set(0, 0.085, z); g.add(k); });
+  // lampadaires parisiens et arbres d'alignement
+  const lampPost = () => { const L = new THREE.Group(), green = M2(0x22302a, 0.5, 0.4);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.6, 10), green); base.position.y = 0.3; L.add(base);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 3.6, 8), green); post.position.y = 2.4; L.add(post);
+    const cage = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.14, 0.55, 6), M2(0xfff1c8, 0.2)); cage.material = new THREE.MeshStandardMaterial({color:0xfff1c8, emissive:0xffe2a0, emissiveIntensity:0.35}); cage.position.y = 4.45; L.add(cage);
+    const hat = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.25, 6), green); hat.position.y = 4.85; L.add(hat);
+    return shadowAll(L); };
+  for (let i=0;i<14;i++){ const x = -78 + i*12;
+    [[-4.6, 0], [7.4, 1]].forEach(([z, k]) => {
+      const l = lampPost(); l.position.set(x + k*6, 0.15, z); g.add(l); scrollable(g, l, 168);
+      const t = leafyTree(6.5, 0x557d3e); t.position.set(x + 6 - k*6, 0.15, z + (k ? 0.6 : -0.6)); g.add(t); scrollable(g, t, 168);
+    }); }
+  // terrasse de café sous son store rayé
+  const awnTex = canvasTex(256, 64, (x, W, H) => { for (let i=0;i<W;i+=32){ x.fillStyle = (i/32)%2 ? '#f4efe3' : '#8f1d22'; x.fillRect(i, 0, 32, H); } });
+  const cafe = new THREE.Group(); cafe.position.set(-8, 0.15, -12.6);
+  const awn = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.8), new THREE.MeshStandardMaterial({map:awnTex, side:THREE.DoubleSide, roughness:0.8})); awn.position.set(0, 3.0, 0.8); awn.rotation.x = -1.05; cafe.add(awn);
+  const signTex = canvasTex(512, 96, (x, W, H) => { x.fillStyle = '#1b1d22'; x.fillRect(0, 0, W, H); x.fillStyle = '#e4b350'; x.font = '400 54px "Alfa Slab One", serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('CAFÉ DU DÉPART', W/2, H/2 + 4); });
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.75), new THREE.MeshBasicMaterial({map:signTex})); sign.position.set(0, 3.9, 0.03); cafe.add(sign);
+  for (let i=0;i<5;i++){ const tx = -2.8 + i*1.4, tz = 1.6 + (i%2)*0.9;
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.03, 16), M2(0xd8d6d0, 0.3, 0.6)); top.position.set(tx, 0.74, tz); cafe.add(top);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.72, 6), M2(0x1b1d22, 0.5)); leg.position.set(tx, 0.37, tz); cafe.add(leg);
+    [-0.5, 0.5].forEach(dx => { rb(0.38, 0.05, 0.38, 0.02, M2(0x8a5a2b), tx + dx, 0.46, tz, cafe); rb(0.38, 0.4, 0.04, 0.02, M2(0x8a5a2b), tx + dx, 0.68, tz - 0.18, cafe); });
+  }
+  shadowAll(cafe); g.add(cafe); scrollable(g, cafe, 127.4);
+  // public : barrières le long du départ, fanions sous l'arche
+  [-3.6, 5.6].forEach(z => { const b = barrierLine(-10, 16, z, g); scrollable(g, b, 127.4); });
+  const bt = bunting(-12, 18, -3.0, 3.2, g); scrollable(g, bt, 127.4);
+  // la tour Eiffel au loin, dans la brume
+  { const E = new THREE.Group(), iron = M2(0x5a4a3e, 0.8, 0.2);
+    const t1 = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 11, 18, 4, 1, true), iron); t1.position.y = 9; t1.rotation.y = Math.PI/4; E.add(t1);
+    const p1 = new THREE.Mesh(new THREE.BoxGeometry(9.5, 1, 9.5), iron); p1.position.y = 18.3; E.add(p1);
+    const t2 = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 4.4, 22, 4), iron); t2.position.y = 29.5; t2.rotation.y = Math.PI/4; E.add(t2);
+    const p2 = new THREE.Mesh(new THREE.BoxGeometry(5, 0.8, 5), iron); p2.position.y = 40.8; E.add(p2);
+    const t3 = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 2.3, 30, 4), iron); t3.position.y = 56; t3.rotation.y = Math.PI/4; E.add(t3);
+    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.2, 5, 6), iron); ant.position.y = 73.5; E.add(ant);
+    E.position.set(-42, 0, -55); g.add(E); }
+  // d'autres équipages dans la file de départ
+  [[-7.6, 0x2f8f4a, 0xf2f2f2], [-13.2, 0xd5202a, 0xf2f2f2], [-18.8, 0xf2efe6, 0xd5202a]].forEach(([x, c, r]) => { const v = mini4L(c, {rim:r}); v.position.set(x, 0, 0); g.add(v); scrollable(g, v, 127.4); });
+}
+
+// ---------- Biarritz : le village départ ----------
+{
+  const g = decorGroups.biarritz;
+  // stands du village
+  [[-26, 0x1f6fb4], [-21, 0xd5202a], [-16, 0xf2f2f2], [-11, 0xe4b350], [-6, 0x1f6fb4], [-1, 0xd5202a], [4, 0x2f8f4a], [12, 0xf2f2f2], [17, 0x1f6fb4], [22, 0xe4b350]].forEach(([x, c], i) => {
+    const s = canopy(c); s.position.set(x, 0, i%3 === 2 ? 9.5 : -12.2); s.rotation.y = i%3 === 2 ? Math.PI : 0; g.add(s); scrollable(g, s, 156); });
+  // équipages garés en épi
+  [[-24, 0xe4b350, 0x1f6fb4], [-19.5, 0xf2efe6, 0xd5202a], [-15, 0x8f2a22, 0xf2f2f2], [-10.5, 0x2f8f4a, 0xe4b350], [13, 0x1f3fa8, 0xc9ef1f], [17.5, 0xd9b779, 0x121d45]].forEach(([x, c, r], i) => {
+    const v = mini4L(c, {rim:r, load: i%2 ? 0x2f5d2a : undefined}); v.position.set(x, 0, i%2 ? 5.6 : -8.8); v.rotation.y = i%2 ? -Math.PI/2 + 0.35 : Math.PI/2 - 0.35; g.add(v); scrollable(g, v, 156); });
+  // public et barrières
+  [-3.9, 3.9].forEach(z => { const b = barrierLine(-6, 22, z, g); scrollable(g, b, 156); });
+  const bt = bunting(-6, 22, -6.5, 3.9, g); scrollable(g, bt, 156);
+  // tamaris de front de mer
+  for (let i=0;i<10;i++){ const t = leafyTree(4.5, 0x5f8a4a); t.position.set(-60 + i*13, 0, -16.2); t.scale.setScalar(0.9 + (i%3)*0.15); g.add(t); scrollable(g, t, 156); }
+  // vagues qui viennent mourir sur la plage, rochers au large
+  const foam = M2(0xf4f8fa, 0.6);
+  [-23.2, -26.5, -31].forEach((z, i) => { const w = new THREE.Mesh(new THREE.PlaneGeometry(400, 0.5 - i*0.12), foam); w.rotation.x = -Math.PI/2; w.position.set(0, 0.03, z); g.add(w); });
+  [[-12, -48, 4], [-4, -52, 2.5], [6, -46, 3], [40, -60, 5]].forEach(([x, z, r]) => { const k = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), M2(0x5e5a52, 1)); k.scale.y = 0.7; k.position.set(x, r*0.25, z); g.add(k); });
+  // le rocher et sa passerelle blanche
+  { const R = new THREE.Group(); R.position.set(18, 0, -55);
+    const rk = new THREE.Mesh(new THREE.DodecahedronGeometry(6, 0), M2(0x6a655c, 1)); rk.scale.set(1.1, 0.9, 0.9); rk.position.y = 2.5; R.add(rk);
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 2.2, 8), M2(0xf2f0ea, 0.6)); st.position.set(0, 8.6, 0); R.add(st);
+    const br = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, 14), M2(0xf2f0ea, 0.6)); br.position.set(-1, 3.2, 10); R.add(br);
+    g.add(R); }
+}
+
+// ---------- Gibraltar : le port d'embarquement ----------
+{
+  const g = decorGroups.gibraltar;
+  // conteneurs empilés
+  const ctex = col => canvasTex(256, 128, (x, W, H) => { x.fillStyle = col; x.fillRect(0, 0, W, H); x.fillStyle = 'rgba(0,0,0,.18)'; for (let i=6;i<W;i+=12) x.fillRect(i, 0, 5, H); x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 6; x.strokeRect(3, 3, W - 6, H - 6); });
+  const cmats = ['#b3161d', '#1f6fb4', '#2f8f4a', '#e08a1e', '#6b6f78', '#e4b350'].map(c => new THREE.MeshStandardMaterial({map:ctex(c), roughness:0.7, metalness:0.3}));
+  let k = 0;
+  for (let i=0;i<9;i++) for (let j=0;j<(i%3 === 1 ? 3 : 2);j++){
+    const c = new THREE.Mesh(new THREE.BoxGeometry(6.1, 2.6, 2.45), cmats[(k++*5)%cmats.length]);
+    c.position.set(-34 + i*6.4, 1.3 + j*2.6, 7.6 + (i%2)*2.6); c.castShadow = true; c.receiveShadow = true; g.add(c); scrollable(g, c, 168);
+  }
+  // portique de manutention
+  { const P = new THREE.Group(), yel = M2(0xe4b350, 0.5, 0.4);
+    [[-5, -4], [-5, 4], [5, -4], [5, 4]].forEach(([x, z]) => { const l = new THREE.Mesh(new THREE.BoxGeometry(0.7, 22, 0.7), yel); l.position.set(x, 11, z); P.add(l); });
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(11, 1.4, 1.2), yel); beam.position.set(0, 22, -4); P.add(beam);
+    const beam2 = beam.clone(); beam2.position.z = 4; P.add(beam2);
+    const boom = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 46), yel); boom.position.set(0, 23, -12); P.add(boom);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(2, 1.6, 2), M2(0xf2f0ea, 0.5)); cab.position.set(0, 21.2, -10); P.add(cab);
+    P.position.set(-46, -0.8, -6); g.add(P); }
+  // rampe d'embarquement vers le ferry
+  { const ramp = new THREE.Mesh(new THREE.BoxGeometry(4, 0.25, 11), M2(0x6f7176, 0.6, 0.5)); ramp.position.set(26, 0.9, -23.5); ramp.rotation.x = 0.17; g.add(ramp);
+    const portTex = canvasTex(512, 64, (x, W, H) => { x.fillStyle = '#121d45'; x.fillRect(0, 0, W, H); x.fillStyle = '#ffffff'; x.font = '700 36px Archivo, Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('EMBARQUEMENT · TANGER MED', W/2, H/2 + 2); });
+    const gantry = new THREE.Group(); gantry.position.set(26, 0, -12);
+    [-2.6, 2.6].forEach(x => { const p = new THREE.Mesh(new THREE.BoxGeometry(0.25, 5, 0.25), M2(0x2b2d33, 0.5)); p.position.set(x, 2.5, 0); gantry.add(p); });
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 0.7), new THREE.MeshBasicMaterial({map:portTex, side:THREE.DoubleSide})); b.position.set(0, 4.6, 0); gantry.add(b);
+    g.add(gantry); }
+  // lampadaires du quai
+  for (let i=0;i<10;i++){ const L = new THREE.Group(), gr = M2(0x8a8f96, 0.4, 0.7);
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 7, 8), gr); p.position.y = 3.5; L.add(p);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.1, 0.12), gr); arm.position.set(0.6, 7, 0); L.add(arm);
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.25), new THREE.MeshStandardMaterial({color:0xffffff, emissive:0xfff1d6, emissiveIntensity:0.3})); lamp.position.set(1.2, 6.92, 0); L.add(lamp);
+    L.position.set(-66 + i*16, 0, -6); g.add(L); scrollable(g, L, 160); }
+  // les équipages en file pour la traversée
+  [[6.2, 0x2f8f4a, 0xf2f2f2], [11.8, 0xd5202a, 0xc9ef1f], [-6.0, 0xf2efe6, 0x1f6fb4], [-11.6, 0xe4b350, 0x121d45]].forEach(([x, c, r]) => {
+    const v = mini4L(c, {rim:r, load:0x2f5d2a}); v.position.set(x, 0, 0); g.add(v); scrollable(g, v, 168); });
+  // mouettes
+  const gull = new THREE.Mesh(new THREE.ConeGeometry(0.06, 1.1, 3), M2(0xf2f2f2, 0.6)); gull.rotation.z = Math.PI/2;
+  for (let i=0;i<7;i++){ const s = new THREE.Group(); const a = gull.clone(); a.rotation.y = 0.5; const b = gull.clone(); b.rotation.y = -0.5; b.position.x = 0.02; s.add(a, b);
+    s.position.set(-20 + i*7, 12 + (i%3)*2.5, -20 - (i%4)*6); s.rotation.x = Math.PI/2; s.rotation.z = i; g.add(s); }
+}
+
+// ---------- Dunes : chameaux, acacias, khaïma ----------
+const duneH = (x, z) => { const r = Math.hypot(x, z);
+  let h = Math.sin(x*0.08+z*0.03)*1.6 + Math.sin(z*0.13-x*0.05)*1.1 + Math.sin((x+z)*0.31)*0.25 + Math.max(0, Math.sin(x*0.035)*Math.cos(z*0.04))*5;
+  return h*THREE.MathUtils.smoothstep(r, 7, 26); };
+function camel(){
+  const C = new THREE.Group(), hide = M2(0xb58852, 0.9), dark = M2(0x6b4a2a, 0.9);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.75, 14, 10), hide); body.scale.set(1.35, 0.75, 0.62); body.position.y = 1.85; C.add(body);
+  const hump = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 8), hide); hump.scale.set(1.1, 0.9, 0.9); hump.position.set(-0.05, 2.35, 0); C.add(hump);
+  tube([0.85, 1.95, 0], [1.35, 2.75, 0], 0.17, C, hide);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), hide); head.scale.set(1.6, 0.8, 0.8); head.position.set(1.55, 2.78, 0); C.add(head);
+  [[0.6, 0.28], [0.6, -0.28], [-0.65, 0.28], [-0.65, -0.28]].forEach(([x, z]) => tube([x, 1.65, z], [x + 0.05, 0, z], 0.08, C, hide));
+  const blanket = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 1.2), M2(0x8f1d22, 0.8)); blanket.position.set(-0.05, 2.25, 0); C.add(blanket);
+  const tail = tube([-1.0, 1.9, 0], [-1.15, 1.4, 0], 0.03, C, dark);
+  return shadowAll(C);
+}
+function acacia(){
+  const A = new THREE.Group(), wood = M2(0x5d4632);
+  tube([0, 0, 0], [0.2, 2.2, 0], 0.13, A, wood); tube([0.2, 2.2, 0], [1.1, 3.2, 0.3], 0.07, A, wood); tube([0.2, 2.2, 0], [-0.8, 3.1, -0.4], 0.07, A, wood);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.2, 0.55, 12), M2(0x6f7d3a, 0.95)); top.scale.z = 0.8; top.position.set(0.15, 3.35, 0); A.add(top);
+  return shadowAll(A);
+}
+{
+  const g = decorGroups.desert;
+  const onDune = (o, x, z, ry = 0) => { o.position.set(x, duneH(x, z), z); o.rotation.y = ry; g.add(o); return o; };
+  // caravane de dromadaires sur la crête
+  [[-14, -17], [-17.5, -18.5], [-21, -20]].forEach(([x, z]) => onDune(camel(), x, z, 0.4));
+  onDune(camel(), 12, -14, 2.8).scale.setScalar(0.95);
+  // acacias isolés
+  [[16, 10], [-9, 15], [24, -22], [-30, 6]].forEach(([x, z], i) => onDune(acacia(), x, z, i).scale.setScalar(0.85 + (i%2)*0.3));
+  // khaïma berbère : tente basse en laine sombre, tapis devant
+  { const K = new THREE.Group();
+    const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 3.4, 1.7, 4, 1, true), new THREE.MeshStandardMaterial({color:0x3b2a20, roughness:1, side:THREE.DoubleSide})); roof.rotation.y = Math.PI/4; roof.scale.z = 0.6; roof.position.y = 1.4; K.add(roof);
+    [[-2, 0], [2, 0], [0, 0]].forEach(([x, z]) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.3, 6), M2(0x5d4632)); p.position.set(x, 1.15, z); K.add(p); });
+    const rugTex = canvasTex(256, 128, (x, W, H) => { x.fillStyle = '#8f1d22'; x.fillRect(0, 0, W, H); x.strokeStyle = '#e4b350'; x.lineWidth = 8; x.strokeRect(10, 10, W - 20, H - 20);
+      x.fillStyle = '#1f3fa8'; for (let i=0;i<4;i++){ x.beginPath(); x.moveTo(40 + i*55, H/2); x.lineTo(60 + i*55, 30); x.lineTo(80 + i*55, H/2); x.lineTo(60 + i*55, H - 30); x.fill(); } });
+    const rug = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.6), new THREE.MeshStandardMaterial({map:rugTex, roughness:0.95})); rug.rotation.x = -Math.PI/2; rug.position.set(0, 0.03, 2.4); K.add(rug);
+    onDune(shadowAll(K), -11, 11, 0.3); }
+  // deux équipages qui suivent la piste au loin
+  onDune(mini4L(0xd5202a, {rim:0xf2f2f2, load:0x2f5d2a}), -26, -6, 0.15);
+  onDune(mini4L(0xf2efe6, {rim:0x1f6fb4}), -38, -11, 0.2);
+  // cairn de pierres plates
+  { const C = new THREE.Group(); for (let i=0;i<6;i++){ const s = new THREE.Mesh(new THREE.CylinderGeometry(0.45 - i*0.06, 0.5 - i*0.06, 0.18, 7), M2(0x9b7a55, 1)); s.position.y = 0.09 + i*0.17; s.rotation.y = i; C.add(s); } onDune(shadowAll(C), 8.5, 7.5); }
+  // stries de vent sur le sable (texture légère)
+  const sand = g.children.find(o => o.isMesh && o.geometry.type === 'PlaneGeometry' && o.geometry.parameters.width === 260);
+  if (sand){ const rip = canvasTex(256, 256, (x, W, H) => { x.fillStyle = '#d9a55f'; x.fillRect(0, 0, W, H); for (let i=0;i<60;i++){ x.strokeStyle = `rgba(${i%2 ? '255,230,180' : '150,100,50'},.18)`; x.lineWidth = 2; x.beginPath(); const y = i*4.3; x.moveTo(0, y); for (let k=0;k<=W;k+=16) x.lineTo(k, y + Math.sin(k*0.05 + i)*3); x.stroke(); } });
+    rip.wrapS = rip.wrapT = THREE.RepeatWrapping; rip.repeat.set(60, 60); sand.material = new THREE.MeshStandardMaterial({map:rip, color:0xffffff, roughness:0.95}); }
+}
+
+// ---------- Bivouac : la vie du camp ----------
+{
+  const g = decorGroups.bivouac;
+  const fire = g.children.find(o => o.userData && o.userData.flame);
+  const fx = fire.position.x, fz = fire.position.z;
+  // chaises pliantes et table de camp autour du feu
+  const chair = col => { const C = new THREE.Group(), fr = M2(0x2b2d33, 0.5, 0.5), cl = M2(col, 0.8);
+    [[0.22, 0.22], [0.22, -0.22], [-0.22, 0.22], [-0.22, -0.22]].forEach(([x, z]) => tube([x, 0, z], [-x*0.6, 0.45, z], 0.015, C, fr));
+    rb(0.48, 0.04, 0.48, 0.01, cl, 0, 0.46, 0, C); const back = rb(0.04, 0.45, 0.48, 0.01, cl, -0.24, 0.7, 0, C); back.rotation.z = -0.15; return shadowAll(C); };
+  [[0, 0xd5202a], [1.2, 0x1f6fb4], [2.4, 0x2f8f4a], [3.6, 0xe4b350], [4.8, 0x1f3fa8]].forEach(([a, c]) => { const ch = chair(c);
+    ch.position.set(fx + Math.cos(a)*1.4, 0, fz + Math.sin(a)*1.4); ch.rotation.y = -a + Math.PI; g.add(ch); scrollable(g, ch, 90); });
+  { const T = new THREE.Group(); rb(0.9, 0.04, 0.55, 0.01, M2(0xd9d6cf, 0.5), 0, 0.7, 0, T);
+    [[0.4, 0.24], [0.4, -0.24], [-0.4, 0.24], [-0.4, -0.24]].forEach(([x, z]) => tube([x, 0, z], [x, 0.7, z], 0.015, T, M2(0x8a8f96, 0.4, 0.7)));
+    const kettle = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), M2(0xc9ccd0, 0.25, 1)); kettle.scale.y = 0.8; kettle.position.set(0.2, 0.8, 0); T.add(kettle);
+    [-0.1, 0.0, -0.2].forEach((x, i) => { const gl = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.025, 0.08, 10), M2(0xd8a83a, 0.2)); gl.position.set(x, 0.76, 0.12 - i*0.05); T.add(gl); });
+    T.position.set(fx - 2.2, 0, fz + 0.6); shadowAll(T); g.add(T); scrollable(g, T, 90); }
+  // guirlande lumineuse entre deux mâts
+  { const L = new THREE.Group(), pole = M2(0x5d4632);
+    const a = [fx - 4.5, 2.6, fz - 2.5], b = [fx + 3.5, 2.6, fz - 3.2];
+    [a, b].forEach(p => tube([p[0], 0, p[2]], p, 0.04, L, pole));
+    const bulb = new THREE.MeshBasicMaterial({color:0xffd27a});
+    for (let i=0;i<=20;i++){ const t = i/20, sag = 0.6*4*t*(1-t);
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), bulb); s.position.set(a[0] + (b[0]-a[0])*t, a[1] - sag - 0.05, a[2] + (b[2]-a[2])*t); L.add(s); }
+    const glow = new THREE.PointLight(0xffc870, 3, 9, 1.8); glow.position.set((a[0] + b[0])/2, 2.0, (a[2] + b[2])/2); L.add(glow);
+    g.add(L); scrollable(g, L, 90); }
+  // tentes dômes des équipages
+  [[-8.5, -5.5, 0x2f8f4a], [9, -2.5, 0xe08a1e], [-9, 6.5, 0x1f6fb4], [5.5, 7.5, 0xd5202a]].forEach(([x, z, c], i) => {
+    const d = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 8, 0, Math.PI*2, 0, Math.PI/2), M2(c, 0.8)); d.scale.set(1.3, 0.85, 1); d.position.set(x, 0, z); d.rotation.y = i; d.castShadow = true; g.add(d); scrollable(g, d, 90); });
+  // les autres 4L garées en cercle, une avec ses phares allumés
+  [[-6, -9, 0.4, 0xd5202a, false], [2, -10.5, -0.1, 0xf2efe6, true], [10.5, -7, -0.6, 0x2f8f4a, false], [-12.5, 1.5, 1.4, 0xe4b350, false]].forEach(([x, z, ry, c, lit]) => {
+    const v = mini4L(c, {rim:0xf2f2f2, load:0x2f5d2a, lights:lit}); v.position.set(x, 0, z); v.rotation.y = ry; g.add(v); scrollable(g, v, 90); });
+  // lanternes au sol
+  for (let i=0;i<6;i++){ const a = i/6*Math.PI*2 + 0.3, l = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.22, 8), new THREE.MeshBasicMaterial({color:0xffb54d}));
+    l.position.set(fx + Math.cos(a)*4.2, 0.11, fz + Math.sin(a)*4.2); g.add(l); scrollable(g, l, 90); }
+  // lune
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(5, 24, 16), new THREE.MeshBasicMaterial({color:0xf2eedc, fog:false})); moon.position.set(-90, 70, -95); g.add(moon);
+}
+
+// ---------- Col du Tichka : la route de montagne ----------
+{
+  const g = decorGroups.atlas;
+  // glissières de sécurité et bornes kilométriques marocaines
+  const railTex = canvasTex(64, 32, (x, W, H) => { x.fillStyle = '#b8bcc2'; x.fillRect(0, 0, W, H); x.fillStyle = 'rgba(0,0,0,.18)'; x.fillRect(0, H*0.45, W, 4); });
+  [-4.1, 4.1].forEach(z => { const r = new THREE.Mesh(new THREE.BoxGeometry(160, 0.32, 0.06), new THREE.MeshStandardMaterial({map:railTex, roughness:0.35, metalness:0.7})); r.position.set(0, 0.62, z); g.add(r); scrollable(g, r, 160);
+    for (let x=-78;x<80;x+=4){ const p = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.08), M2(0x8a8f96, 0.4, 0.7)); p.position.set(x, 0.35, z + Math.sign(z)*0.06); g.add(p); scrollable(g, p, 160); } });
+  const borneTex = canvasTex(128, 192, (x, W, H) => { x.fillStyle = '#f4f2ec'; x.fillRect(0, 0, W, H); x.fillStyle = '#c1121f'; x.beginPath(); x.ellipse(W/2, 34, W/2, 34, 0, Math.PI, 0); x.fill(); x.fillRect(0, 34, W, 22);
+    x.fillStyle = '#1b1d22'; x.font = '700 30px Archivo, Arial'; x.textAlign = 'center'; x.fillText('N9', W/2, 46); x.font = '700 26px Archivo, Arial'; x.fillText('MARRAKECH', W/2, 100); x.font = '700 40px Archivo, Arial'; x.fillText('108', W/2, 150); });
+  for (let i=0;i<4;i++){ const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.75, 0.14), [M2(0xf4f2ec), M2(0xf4f2ec), M2(0xc1121f), M2(0xf4f2ec), new THREE.MeshStandardMaterial({map:borneTex}), M2(0xf4f2ec)]);
+    b.position.set(-60 + i*40, 0.37, 4.7); b.rotation.y = Math.PI; b.castShadow = true; g.add(b); scrollable(g, b, 160); }
+  // marchand de minéraux, classique du col
+  { const S = new THREE.Group();
+    rb(2.4, 0.8, 0.9, 0.03, M2(0x8a6440), 0, 0.4, 0, S);
+    const awn = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.4), new THREE.MeshStandardMaterial({color:0x1f6fb4, side:THREE.DoubleSide, roughness:0.8})); awn.position.set(0, 2.2, 0.2); awn.rotation.x = -1.2; S.add(awn);
+    [-1.3, 1.3].forEach(x => tube([x, 0, -0.4], [x, 2.4, -0.4], 0.04, S, M2(0x5d4632)));
+    const geodeCols = [0x7d3fa8, 0x2f8fb4, 0xd5202a, 0xe4b350, 0x2f8f4a];
+    for (let i=0;i<14;i++){ const ge = new THREE.Mesh(new THREE.DodecahedronGeometry(0.09 + (i%3)*0.03, 0), M2(geodeCols[i%5], 0.25, 0.3)); ge.position.set(-1.0 + (i%7)*0.33, 0.86, -0.2 + Math.floor(i/7)*0.35); S.add(ge); }
+    S.position.set(-6, 0, -6.2); shadowAll(S); g.add(S); scrollable(g, S, 160); }
+  // village de kasbahs à flanc de montagne
+  const ocre = M2(0xa86a48, 0.95), win = M2(0x2b1d16, 0.9);
+  for (let i=0;i<9;i++){ const K = new THREE.Group(), w = 3 + (i%3), h = 3.5 + (i%4)*1.2;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 3), ocre); b.position.y = h/2; K.add(b);
+    for (let c=0;c<4;c++){ const t = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.55), ocre); t.position.set((c%2 ? 1 : -1)*(w/2 - 0.28), h + 0.3, (c < 2 ? 1 : -1)*1.22); K.add(t); }
+    for (let wdw=0; wdw<2; wdw++){ const wd = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.55), win); wd.position.set(-w/4 + wdw*w/2, h*0.6, 1.51); K.add(wd); }
+    K.position.set(-40 + i*7.5, 0, -27 - (i%2)*4 - (i%3)*2); g.add(K); }
+  // genévriers sur les pentes
+  for (let i=0;i<16;i++){ const t = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.6, 7), M2(0x3f5a32, 0.95)); t.position.set(-70 + i*9 + (i%3), 1.3, i%2 ? -12 - (i%5)*2 : 10 + (i%4)*2); t.castShadow = true; g.add(t); scrollable(g, t, 160); }
+  // pylônes électriques
+  for (let i=0;i<4;i++){ const P = new THREE.Group(), st = M2(0x8a8f96, 0.4, 0.7);
+    [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]].forEach(([x, z]) => tube([x*1.6, 0, z*1.6], [x*0.4, 16, z*0.4], 0.12, P, st));
+    [11, 14].forEach(y => { const a = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 7), st); a.position.y = y; P.add(a); });
+    P.position.set(-60 + i*40, 0, 22); g.add(P); }
+  // un équipage qui redescend vers Marrakech
+  { const v = mini4L(0xe4b350, {rim:0x121d45, load:0x2f5d2a}); v.position.set(-14, 0, 1.8); v.rotation.y = Math.PI; g.add(v); scrollable(g, v, 160); }
+}
+
+// ---------- Marrakech : souk, porte des remparts, ligne d'arrivée ----------
+{
+  const g = decorGroups.marrakech;
+  const ocre = M2(0xc47a52, 0.95);
+  // une grande porte (bab) percée dans les remparts
+  { const B = new THREE.Group();
+    const S = new THREE.Shape([[-5, 0], [5, 0], [5, 9], [-5, 9]].map(p => new THREE.Vector2(...p)));
+    const hole = new THREE.Path(); hole.moveTo(-1.8, 0); hole.lineTo(-1.8, 4.2); hole.absarc(0, 4.2, 1.8, Math.PI, 0, true); hole.lineTo(1.8, 0); S.holes.push(hole);
+    const gate = new THREE.Mesh(new THREE.ExtrudeGeometry(S, {depth:3, bevelEnabled:false, curveSegments:20}), M2(0xb86d47, 0.9)); gate.position.z = -1.5; B.add(gate);
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 6), new THREE.MeshBasicMaterial({color:0x24160f})); back.position.set(0, 3, 1.2); B.add(back); // passage dans l'ombre
+    const S2 = new THREE.Shape(); S2.moveTo(-2.6, 0); S2.lineTo(-2.6, 4.4); S2.absarc(0, 4.4, 2.6, Math.PI, 0, true); S2.lineTo(2.6, 0); S2.lineTo(2.25, 0); S2.lineTo(2.25, 4.4); S2.absarc(0, 4.4, 2.25, 0, Math.PI, false); S2.lineTo(-2.25, 0);
+    const frame = new THREE.Mesh(new THREE.ExtrudeGeometry(S2, {depth:0.1, bevelEnabled:false, curveSegments:20}), M2(0x2f8f6a, 0.7)); frame.position.z = 1.52; B.add(frame);
+    for (let i=0;i<5;i++){ const c = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 3), M2(0xb86d47, 0.9)); c.position.set(-4 + i*2, 9.45, 0); B.add(c); }
+    B.position.set(-14, 0, -21.5); g.add(B); scrollable(g, B, 168); }
+  // tapis suspendus aux remparts
+  const rugCols = [['#8f1d22', '#e4b350'], ['#1f3fa8', '#f2efe6'], ['#2f8f4a', '#e4b350'], ['#e08a1e', '#8f1d22'], ['#5a2a6e', '#e4b350']];
+  rugCols.forEach(([a, b], i) => { const t = canvasTex(128, 256, (x, W, H) => { x.fillStyle = a; x.fillRect(0, 0, W, H); x.strokeStyle = b; x.lineWidth = 8; x.strokeRect(8, 8, W - 16, H - 16);
+      x.fillStyle = b; for (let k=0;k<5;k++){ x.beginPath(); x.moveTo(W/2, 40 + k*42); x.lineTo(W/2 + 26, 60 + k*42); x.lineTo(W/2, 80 + k*42); x.lineTo(W/2 - 26, 60 + k*42); x.fill(); } });
+    const r = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 2.6), new THREE.MeshStandardMaterial({map:t, roughness:0.95, side:THREE.DoubleSide})); r.position.set(2 + i*2.2, 3.0, -20.95); g.add(r); scrollable(g, r, 168); });
+  // échoppes du souk
+  const goods = [0xd5202a, 0xe4b350, 0x1f6fb4, 0x2f8f4a, 0xe08a1e, 0xf2efe6];
+  for (let i=0;i<6;i++){ const S = new THREE.Group(), col = goods[(i*2)%goods.length];
+    rb(2.2, 0.8, 1.0, 0.03, M2(0x8a6440), 0, 0.4, 0, S);
+    const awn = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.5), new THREE.MeshStandardMaterial({color:col, roughness:0.8, side:THREE.DoubleSide})); awn.position.set(0, 2.3, -0.2); awn.rotation.x = 1.15; S.add(awn);
+    [-1.2, 1.2].forEach(x => tube([x, 0, 0.45], [x, 2.6, 0.45], 0.04, S, M2(0x5d4632)));
+    for (let k=0;k<8;k++){ const kind = (i + k) % 3;
+      const m = kind === 0 ? new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.18, 10), M2(goods[(k + i)%goods.length], 0.6)) // épices en cônes
+        : kind === 1 ? new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.16, 12), M2(0xb8653a, 0.8)) // poteries
+        : new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), M2(0xe08a1e, 0.6)); // oranges
+      m.position.set(-0.85 + (k%4)*0.55, 0.9, -0.2 + Math.floor(k/4)*0.35); S.add(m); }
+    shadowAll(S); S.position.set(-22 + i*3.2, 0, 9.2); S.rotation.y = Math.PI; g.add(S); scrollable(g, S, 168); }
+  // lanternes marocaines suspendues au-dessus des échoppes
+  const lantern = new THREE.MeshStandardMaterial({color:0xd8a83a, emissive:0xffb347, emissiveIntensity:0.5, metalness:0.6, roughness:0.3});
+  for (let i=0;i<10;i++){ const l = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), lantern); l.scale.y = 1.6; l.position.set(-23 + i*2.1, 3.1 + (i%2)*0.3, 8.4); g.add(l); scrollable(g, l, 168); }
+  // orangers en pots
+  for (let i=0;i<6;i++){ const O = new THREE.Group();
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.6, 12), M2(0xb8653a, 0.8)); pot.position.y = 0.3; O.add(pot);
+    const t = leafyTree(2.8, 0x3f6a32); t.position.y = 0.5; O.add(t);
+    for (let k=0;k<8;k++){ const f = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), M2(0xe08a1e, 0.5)); const a = k*0.8; f.position.set(Math.cos(a)*0.65, 2.3 + (k%3)*0.2, Math.sin(a)*0.65); O.add(f); }
+    shadowAll(O); O.position.set(10 + i*5, 0, i%2 ? -8 : 7.5); g.add(O); scrollable(g, O, 168); }
+  // ligne d'arrivée en damier et public derrière les barrières
+  { const chk = canvasTex(256, 32, (x, W, H) => { for (let i=0;i<16;i++) for (let j=0;j<2;j++){ x.fillStyle = (i + j)%2 ? '#111' : '#fff'; x.fillRect(i*16, j*16, 16, 16); } });
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 9), new THREE.MeshStandardMaterial({map:chk, roughness:0.7})); line.rotation.x = -Math.PI/2; line.rotation.z = Math.PI/2; line.position.set(8, 0.012, 0.8); g.add(line); scrollable(g, line, 160); }
+  [-3.9, 5.4].forEach(z => { const b = barrierLine(-4, 22, z, g); scrollable(g, b, 168); });
+  const bt = bunting(-4, 22, -3.4, 3.4, g, ['#c1121f', '#2f8f4a', '#f2efe6']); scrollable(g, bt, 168);
+  // les équipages déjà arrivés
+  [[16, 0xf2efe6, 0x1f6fb4], [20.5, 0x2f8f4a, 0xe4b350], [-8, 0xd5202a, 0xf2f2f2]].forEach(([x, c, r]) => { const v = mini4L(c, {rim:r, load:0x2f5d2a}); v.position.set(x, 0, -6.5); v.rotation.y = 0.25; g.add(v); scrollable(g, v, 168); });
+}
+
 const DECORS = {
   studio: {name:'Showroom', desc:'Garage sombre, arcs lumineux et sol miroir : parfait pour les reflets', garage:true,
     sky:[0x050506, 0x0a0a0c, 0x0a0a0c], fog:[0x0a0a0c, 40, 120], hemi:[0xfff4e6, 0x1c1c20, 0.5], sun:[0xfff4e6, 1.5, [0.8,10,1.6]], env:1.1, exposure:1.05, night:false},
