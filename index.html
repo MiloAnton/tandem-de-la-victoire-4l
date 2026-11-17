@@ -1252,6 +1252,169 @@ let garageEnv;
     put(jackStand(), 3.3, 0, 2.6); put(jackStand(), 3.0, 0, -3.0);
     put(floorJack(), -3.6, 0, 2.4, -2.4);
     put(jerry(0xb3161d), -3.4, 0, -2.6, 0.8);
+
+    // ---------- encore plus d'atelier et de showroom ----------
+    const label = (txt, w, h, fg, bg, font) => { // petite texture de texte
+      const c = document.createElement('canvas'); c.width = Math.round(512*w/Math.max(w, h)); c.height = Math.round(512*h/Math.max(w, h));
+      const x = c.getContext('2d'); if (bg){ x.fillStyle = bg; x.fillRect(0, 0, c.width, c.height); }
+      x.fillStyle = fg; x.textAlign = 'center'; x.textBaseline = 'middle';
+      const lines = txt.split('\n'); let fs = c.height/(lines.length*1.25); x.font = `${font || '700'} ${fs}px Archivo, Arial`;
+      const wmax = Math.max(...lines.map(l => x.measureText(l).width)); if (wmax > c.width*0.9){ fs *= c.width*0.9/wmax; x.font = `${font || '700'} ${fs}px Archivo, Arial`; }
+      lines.forEach((l, i) => x.fillText(l, c.width/2, c.height/2 + (i - (lines.length-1)/2)*fs*1.2));
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    };
+    const kraft = new THREE.MeshStandardMaterial({color:0xb98a55, roughness:0.85});
+
+    // étagère métallique chargée
+    function shelving(){
+      const S = new THREE.Group(), w = 1.8, d = 0.55, h = 2.1;
+      [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([a, b]) => B(0.04, h, 0.04, steelG, a*w/2, h/2, b*d/2, S));
+      [0.12, 0.62, 1.12, 1.62, 2.06].forEach((y, i) => {
+        B(w, 0.025, d, steelG, 0, y, 0, S);
+        if (i === 4) return;
+        for (let k=0;k<4;k++){ // cartons, bidons d'huile, caisses
+          const xk = -w/2 + 0.25 + k*0.42, kind = (i*3 + k) % 4;
+          if (kind === 0 || kind === 3){ const bx = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.3, 0.4), kraft); bx.position.set(xk, y + 0.165, 0); S.add(bx); }
+          else if (kind === 1){ for (let j=0;j<3;j++){ const can = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.2, 14), new THREE.MeshStandardMaterial({color:[0x1f6fb4, 0xe4b350, 0x2f5d2a][j], roughness:0.4, metalness:0.4})); can.position.set(xk - 0.12 + j*0.12, y + 0.115, 0.05); S.add(can); } }
+          else { const cr = new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.22, 0.4, 2, 0.02), new THREE.MeshStandardMaterial({color:0x2b2d33, roughness:0.6})); cr.position.set(xk, y + 0.125, 0); S.add(cr); }
+        }
+      });
+      S.traverse(o => { if (o.isMesh) o.castShadow = true; });
+      return S;
+    }
+    // compresseur
+    function compressor(){
+      const C = new THREE.Group();
+      const tank = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.6, 6, 18), red); tank.rotation.z = Math.PI/2; tank.position.y = 0.32; C.add(tank);
+      B(0.32, 0.22, 0.26, black, 0.05, 0.62, 0, C); // moteur
+      const fly = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.04, 20), steelG); fly.rotation.x = Math.PI/2; fly.position.set(-0.18, 0.62, 0.12); C.add(fly);
+      const gauge = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 16), chrome); gauge.rotation.z = Math.PI/2; gauge.position.set(0.45, 0.42, 0); C.add(gauge);
+      [[-0.3, 1], [-0.3, -1]].forEach(([x, s]) => { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.05, 16), rubber); w.rotation.x = Math.PI/2; w.position.set(x, 0.09, s*0.2); C.add(w); });
+      B(0.05, 0.1, 0.05, steelG, 0.35, 0.05, 0, C);
+      tube([0.3, 0.35, 0], [0.55, 0.85, 0], 0.012, C, steelG);
+      const hose = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.014, 6, 30), new THREE.MeshStandardMaterial({color:0xe4b350, roughness:0.6})); hose.position.set(0.55, 0.85, 0); hose.rotation.y = Math.PI/2; C.add(hose);
+      C.traverse(o => { if (o.isMesh) o.castShadow = true; });
+      return C;
+    }
+    // planche à roulettes de mécano
+    function creeper(){
+      const K = new THREE.Group();
+      const b = new THREE.Mesh(new RoundedBoxGeometry(1.0, 0.04, 0.45, 2, 0.015), new THREE.MeshStandardMaterial({color:0x2b2d33, roughness:0.5})); b.position.y = 0.1; K.add(b);
+      const pad = new THREE.Mesh(new RoundedBoxGeometry(0.22, 0.05, 0.32, 2, 0.02), red); pad.position.set(0.36, 0.14, 0); K.add(pad);
+      [[-0.4, 1], [-0.4, -1], [0.4, 1], [0.4, -1]].forEach(([x, s]) => { const w = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), black); w.position.set(x, 0.04, s*0.18); K.add(w); });
+      K.traverse(o => { if (o.isMesh) o.castShadow = true; }); return K;
+    }
+    // extincteur sur son support mural
+    function extinguisher(){
+      const E = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.42, 6, 16), red); body.position.y = 0.3; E.add(body);
+      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.08, 12), black); head.position.y = 0.6; E.add(head);
+      B(0.1, 0.03, 0.04, black, 0.05, 0.65, 0, E);
+      tube([0.03, 0.6, 0], [0.12, 0.35, 0.05], 0.012, E, black);
+      const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.16), new THREE.MeshStandardMaterial({map:label('FEU\nA B C', 1, 1.6, '#111', '#f4efe3')}));
+      lab.position.set(0, 0.32, 0.087); E.add(lab);
+      return E;
+    }
+    // potelet chromé et cordon rouge
+    function stanchionRing(r, from, to, n){
+      const P = new THREE.Group(), velvet = new THREE.MeshStandardMaterial({color:0x8f121b, roughness:0.7});
+      const pts = [];
+      for (let i=0;i<n;i++){
+        const a = from + (to - from)*i/(n-1), x = Math.cos(a)*r, z = Math.sin(a)*r; pts.push([x, z]);
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.03, 24), chrome); base.position.set(x, 0.015, z); P.add(base);
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.9, 12), chrome); post.position.set(x, 0.47, z); P.add(post);
+        const top = new THREE.Mesh(new THREE.SphereGeometry(0.045, 14, 10), chrome); top.position.set(x, 0.94, z); P.add(top);
+      }
+      for (let i=0;i<pts.length-1;i++){ // cordon en chaînette
+        const [x0, z0] = pts[i], [x1, z1] = pts[i+1], N = 8;
+        for (let k=0;k<N;k++){
+          const t0 = k/N, t1 = (k+1)/N, sag = t => 0.22*4*t*(1-t);
+          tube([x0 + (x1-x0)*t0, 0.88 - sag(t0), z0 + (z1-z0)*t0], [x0 + (x1-x0)*t1, 0.88 - sag(t1), z0 + (z1-z0)*t1], 0.018, P, velvet);
+        }
+      }
+      return P;
+    }
+    // pupitre de présentation de la 4L
+    function infoStand(){
+      const I = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.03, 24), chrome); base.position.y = 0.015; I.add(base);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.95, 12), chrome); post.position.y = 0.49; I.add(post);
+      const board = new THREE.Group(); board.position.y = 1.0; board.rotation.z = -0.6; I.add(board);
+      const fr = new THREE.Mesh(new RoundedBoxGeometry(0.04, 0.42, 0.6, 2, 0.015), chrome); board.add(fr);
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.38), new THREE.MeshBasicMaterial({map:label('4L F4 · 1983\nÉquipage 435\nTandem de la Victoire\n4L Trophy 2027', 1.47, 1, '#f3d48a', '#121d45'), fog:false}));
+      face.rotation.y = Math.PI/2; face.position.x = 0.021; board.add(face);
+      return I;
+    }
+    // grande plante en pot
+    function plant(){
+      const P = new THREE.Group();
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.24, 0.6, 24), new THREE.MeshStandardMaterial({color:0x1b1b1e, roughness:0.4, metalness:0.3})); pot.position.y = 0.3; P.add(pot);
+      const leaf = new THREE.MeshStandardMaterial({color:0x2f6b3a, roughness:0.7, side:THREE.DoubleSide});
+      for (let i=0;i<14;i++){ const a = i*2.4, h = 0.7 + (i%5)*0.18;
+        const l = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.9, 4), leaf); l.scale.z = 0.25;
+        l.position.set(Math.cos(a)*0.12, 0.6 + h*0.5, Math.sin(a)*0.12); l.rotation.set(Math.sin(a)*0.5, a, -Math.cos(a)*0.5); P.add(l); }
+      return P;
+    }
+    // râtelier mural à pneus
+    function tireRack(){
+      const R = new THREE.Group();
+      [-0.9, 0.9].forEach(x => { B(0.05, 0.05, 0.5, steelG, x, 0, 0.25, R); });
+      [0.1, 0.4].forEach(z => B(1.9, 0.04, 0.04, steelG, 0, 0, z, R));
+      for (let i=0;i<4;i++){ const t = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.1, 10, 26), rubber); t.position.set(-0.66 + i*0.44, 0.3, 0.25); t.castShadow = true; R.add(t);
+        const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.12, 20), steelG); rim.rotation.x = Math.PI/2; rim.position.set(-0.66 + i*0.44, 0.3, 0.25); R.add(rim); }
+      return R;
+    }
+    // enseigne néon
+    function neon(txt, w){
+      const c = document.createElement('canvas'); c.width = 1024; c.height = 220; const x = c.getContext('2d');
+      x.font = '400 150px "Alfa Slab One", serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.shadowColor = '#ff3b3b'; x.shadowBlur = 30; x.fillStyle = '#ffd0d0'; x.fillText(txt, 512, 120); x.shadowBlur = 0; x.fillStyle = '#fff4f4'; x.fillText(txt, 512, 120);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+      document.fonts.load('150px "Alfa Slab One"').then(() => { x.clearRect(0, 0, 1024, 220); x.shadowColor = '#ff3b3b'; x.shadowBlur = 30; x.fillStyle = '#ffd0d0'; x.fillText(txt, 512, 120); x.shadowBlur = 0; x.fillStyle = '#fff4f4'; x.fillText(txt, 512, 120); t.needsUpdate = true; wake(); }).catch(()=>{});
+      return new THREE.Mesh(new THREE.PlaneGeometry(w, w*220/1024), new THREE.MeshBasicMaterial({map:t, transparent:true, fog:false}));
+    }
+    // horloge murale
+    function clock(){
+      const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+      x.fillStyle = '#f4efe3'; x.beginPath(); x.arc(128, 128, 124, 0, 7); x.fill(); x.lineWidth = 10; x.strokeStyle = '#121d45'; x.stroke();
+      x.fillStyle = '#121d45'; for (let i=0;i<12;i++){ const a = i/12*Math.PI*2; x.fillRect(128 + Math.cos(a)*100 - 4, 128 + Math.sin(a)*100 - 4, 8, 8); }
+      x.lineCap = 'round'; x.lineWidth = 9; x.beginPath(); x.moveTo(128, 128); x.lineTo(128 + 50, 128 - 30); x.stroke();
+      x.lineWidth = 6; x.beginPath(); x.moveTo(128, 128); x.lineTo(128 - 20, 128 - 85); x.stroke();
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+      return new THREE.Mesh(new THREE.CircleGeometry(0.35, 40), new THREE.MeshStandardMaterial({map:t, roughness:0.4}));
+    }
+    // carton de dons pour le raid
+    function donationBox(txt){
+      const D = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.36, 0.4), kraft); b.position.y = 0.18; b.castShadow = true; D.add(b);
+      B(0.505, 0.365, 0.05, new THREE.MeshStandardMaterial({color:0x8e6a3f, roughness:0.8}), 0, 0.18, 0, D);
+      const l = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.16), new THREE.MeshStandardMaterial({map:label(txt, 2.1, 1, '#121d45', '#f4efe3')})); l.position.set(0, 0.2, 0.201); D.add(l);
+      return D;
+    }
+    // bandes de sécurité jaunes et noires au sol, devant le mobilier
+    {
+      const c = document.createElement('canvas'); c.width = 256; c.height = 32; const x = c.getContext('2d');
+      x.fillStyle = '#111'; x.fillRect(0, 0, 256, 32); x.fillStyle = '#e4b350';
+      for (let i=-32;i<256;i+=32){ x.beginPath(); x.moveTo(i, 32); x.lineTo(i+16, 32); x.lineTo(i+48, 0); x.lineTo(i+32, 0); x.fill(); }
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.repeat.set(36, 1);
+      [1, -1].forEach(s => { const m = new THREE.Mesh(new THREE.PlaneGeometry(18, 0.12), new THREE.MeshStandardMaterial({map:t, roughness:0.6})); m.rotation.x = -Math.PI/2; m.position.set(0.5, 0.006, s*(ZW - 1.15)); g.add(m); });
+    }
+
+    // placement
+    put(shelving(), -11.9, 0, -9.9, Math.PI/2); put(shelving(), -11.9, 0, 9.9, Math.PI/2);
+    put(shelving(), 11.9, 0, 9.9, -Math.PI/2);
+    put(compressor(), 10.6, 0, -10.1, 0.3);
+    put(creeper(), 9.0, 0, -9.3, 0.9);
+    put(donationBox('FOURNITURES\nSCOLAIRES'), -10.6, 0, -8.6, 0.3); put(donationBox('CAHIERS'), -10.1, 0, -8.9, -0.2);
+    { const top = donationBox('DONS'); top.position.y = 0.36; const st = new THREE.Group(); st.add(top); put(st, -10.35, 0, -8.75, 0.1); }
+    put(donationBox('LIVRES'), 11.0, 0, 8.4, 2.9); put(donationBox('SPORT'), 10.5, 0, 8.8, 3.3);
+    [[-8.2, -1], [8.6, 1]].forEach(([x, s]) => { const e = extinguisher(); e.position.set(x, 0.75, s*(RZ/2 - 0.12)); e.rotation.y = s > 0 ? Math.PI : 0; g.add(e);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({map:label('EXTINCTEUR', 1, 1, '#fff', '#c1121f'), fog:false})); sign.position.set(x, 1.65, s*(RZ/2 - 0.03)); sign.rotation.y = s > 0 ? Math.PI : 0; g.add(sign); });
+    { const r = tireRack(); r.position.set(-1.6, 1.7, RZ/2 - 0.55); g.add(r); }
+    { const n = neon('ATELIER 435', 3.4); n.position.set(4.6, 3.0, RZ/2 - 0.03); n.rotation.y = Math.PI; g.add(n); }
+    { const c = clock(); c.position.set(-6.4, 3.1, RZ/2 - 0.03); c.rotation.y = Math.PI; g.add(c); }
+    [[-12.2, 6.4], [-12.2, -6.4], [12.2, 6.4], [12.2, -6.4]].forEach(([x, z]) => put(plant(), x, 0, z));
+    put(stanchionRing(3.45, Math.PI*0.62, Math.PI*1.38, 5), 0, 0, 0);
+    put(infoStand(), 3.4, 0, -3.25, 0.75);
   }
   // carte d'environnement dédiée : ce sont ces arcs qui se reflètent dans la carrosserie
   const env = new THREE.Scene();
