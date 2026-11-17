@@ -2579,7 +2579,7 @@ async function copyText(txt, ok){ try { await navigator.clipboard.writeText(txt)
 // Adresse de contact de l'équipage : à renseigner pour activer le bouton « Envoyer par e-mail »
 const CONTACT_EMAIL = 'milo@leonis-formation.fr';
 // Lien de la cagnotte HelloAsso : à renseigner dès qu'elle est en ligne
-const HELLOASSO_URL = '';
+const HELLOASSO_URL = 'https://www.helloasso.com/associations/tandem-de-la-victoire/adhesions/4l-trophy-2027-tandem-de-la-victoire';
 function askText(){
   const org = document.getElementById('askOrg').value.trim(), mail = document.getElementById('askMail').value.trim();
   return `Bonjour,\n\nLe sponsoring de votre 4L pour le 4L Trophy 2027 m'intéresse${org ? ' (' + org + ')' : ''}. Voici les emplacements que j'ai retenus :\n\n` + packText() + `\n\n` + (mail ? `Vous pouvez me recontacter ici : ${mail}\n\n` : '') + `Bien cordialement`;
