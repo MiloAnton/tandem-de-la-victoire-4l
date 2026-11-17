@@ -18,6 +18,8 @@
   .brand{position:fixed;left:16px;top:14px;display:flex;align-items:center;gap:12px;z-index:5;pointer-events:none}
   .brand img{width:62px;height:62px;filter:drop-shadow(0 3px 8px rgba(0,0,0,.35))}
   .brand h1{margin:0;font-family:"Alfa Slab One",serif;font-weight:400;font-size:21px;letter-spacing:.3px;color:var(--gold2);text-shadow:0 2px 6px rgba(0,0,0,.45)}
+  .brand h1 #stageTag{display:inline-block;vertical-align:middle;margin-left:10px;font:700 12px Archivo,sans-serif;letter-spacing:.02em;color:#121d45;background:var(--gold);padding:4px 10px;border-radius:999px;text-shadow:none;transform:translateY(-2px)}
+  .brand h1 #stageTag:empty{display:none}
   .brand p{margin:2px 0 0;font-size:12.5px;color:#fff;opacity:.88;text-shadow:0 1px 4px rgba(0,0,0,.6)}
   .views{position:fixed;left:16px;bottom:16px;display:flex;flex-wrap:wrap;gap:6px;z-index:5;max-width:calc(100% - 420px)}
   .chip{background:rgba(18,29,69,.82);border:1px solid var(--line);color:var(--ink);padding:7px 11px;border-radius:999px;font:500 12.5px Archivo,sans-serif;cursor:pointer;backdrop-filter:blur(6px)}
@@ -66,6 +68,9 @@
   .card span{font-size:12px;color:var(--muted)}
   .rm-c{fill:#3d4a7a;font:700 11px Archivo,sans-serif;letter-spacing:.14em;text-anchor:middle}
   .rm-s{fill:#5aa3c4;font:600 10px Archivo,sans-serif}
+  .rm-c2{font-size:9px;letter-spacing:.1em}
+  .rm-sea{fill:#2f5a8a;font:italic 600 10px Archivo,sans-serif;letter-spacing:.18em;text-anchor:middle}
+  .rm-d{fill:#c9ef1f;font:600 10px Archivo,sans-serif}
   .rm-stop{cursor:pointer}
   .rm-stop circle{fill:#0b1230;stroke:#e4b350;stroke-width:2.5}
   .rm-stop text{fill:#f4efe3;font:600 12px Archivo,sans-serif}
@@ -106,7 +111,7 @@
 <div class="brand">
   <img src="logo-badge.png" alt="Logo Le Tandem de la Victoire">
   <div>
-    <h1>Le Tandem de la Victoire</h1>
+    <h1>Le Tandem de la Victoire <span id="stageTag"></span></h1>
     <p>Équipage 435 · 4L F4 1.1 de 1983 · Paris → Marrakech · 15 février au 3 mars 2027</p>
   </div>
 </div>
@@ -2020,14 +2025,18 @@ const DECORS = {
 };
 // Trajet indicatif : les grandes étapes, chacune reliée à un décor
 const STAGES = [
-  {decor:'ville', name:'Paris', note:'Départ de l\'équipage', lat:48.86, lon:2.35},
-  {decor:'biarritz', name:'Biarritz', note:'Village départ', lat:43.48, lon:-1.56},
-  {decor:'gibraltar', name:'Algésiras', note:'Traversée du détroit de Gibraltar', lat:36.13, lon:-5.45},
-  {decor:'desert', name:'Merzouga', note:'Les pistes et les dunes', lat:31.10, lon:-4.01},
-  {decor:'bivouac', name:'Bivouac', note:'Les nuits dans le désert', lat:30.35, lon:-5.85},
-  {decor:'atlas', name:'Col du Tichka', note:'Le Haut Atlas', lat:31.29, lon:-7.38},
-  {decor:'marrakech', name:'Marrakech', note:'Ligne d\'arrivée', lat:31.63, lon:-8.0},
+  {decor:'ville', name:'Paris', note:'Départ de l\'équipage', date:'15/02', lat:48.86, lon:2.35},
+  {decor:'biarritz', name:'Biarritz', note:'Village départ', date:'17/02', lat:43.48, lon:-1.56},
+  {decor:'gibraltar', name:'Algésiras', note:'Arrivée au port, avant l\'embarquement', date:'19 et 20/02', lat:36.13, lon:-5.45},
+  {decor:'gibraltar', name:'Détroit', note:'Traversée vers Tanger', date:'20 et 21/02', lat:35.78, lon:-5.81, key:'detroit'},
+  {decor:'desert', name:'Merzouga', note:'Les pistes et les dunes', date:'22 au 26/02', lat:31.10, lon:-4.01},
+  {decor:'bivouac', name:'Bivouac', note:'Les nuits dans le désert', date:'22 au 26/02', lat:30.35, lon:-5.85},
+  {decor:'atlas', name:'Col du Tichka', note:'Le Haut Atlas', date:'26/02', lat:31.29, lon:-7.38},
+  {decor:'marrakech', name:'Marrakech', note:'Ligne d\'arrivée', date:'26/02', lat:31.63, lon:-8.0},
 ];
+// dates affichées à côté du titre quand on est dans un décor d'étape (2027)
+const DECOR_DATES = {ville:'Départ · 15 février', biarritz:'Village départ · 17 février', gibraltar:'Algésiras et détroit · 19 au 21 février',
+  desert:'Désert · 22 au 26 février', bivouac:'Bivouac · 22 au 26 février', atlas:'Col du Tichka · 26 février', marrakech:'Arrivée · 26 février'};
 let currentDecor = 'studio', lightsOn = false, warnOn = false;
 function setLights(on){
   lightsOn = on;
@@ -2056,6 +2065,7 @@ function setDecor(id){
   fireLight.intensity = d.night ? 9 : 0;
   // poser la voiture sur le sol du décor
   resetScroll();
+  { const tag = document.getElementById('stageTag'); if (tag) tag.textContent = DECOR_DATES[id] || ''; }
   document.querySelectorAll('#decorList .card, [data-stage]').forEach(c => c.classList.toggle('on', (c.dataset.id || c.dataset.stage) === id));
 }
 
@@ -2343,17 +2353,32 @@ function buildStatic(){
   {
     const W = 326, H = 400, px = lon => 80 + (lon + 8.2)/11*(W - 150), py = lat => 22 + (49.8 - lat)/20.6*(H - 44);
     const pts = STAGES.map(s => [px(s.lon), py(s.lat)]);
+    const poly = pts => pts.map(([lo, la]) => `${px(lo).toFixed(1)},${py(la).toFixed(1)}`).join(' ');
+    // contours simplifiés des pays traversés (et voisins), pour se repérer
+    const COUNTRIES = [
+      ['FRANCE', [[-4.8,48.4],[-3.0,48.8],[-1.6,48.7],[-1.9,49.7],[0.2,49.6],[1.6,50.9],[2.5,51.1],[4.2,49.9],[5.9,49.4],[8.2,49.0],[7.6,47.6],[6.0,46.2],[7.0,45.9],[6.6,45.1],[7.7,44.0],[6.2,43.1],[4.6,43.4],[3.1,43.0],[3.2,42.4],[1.7,42.5],[-0.7,42.8],[-1.8,43.4],[-1.3,44.6],[-1.2,46.2],[-2.2,47.1],[-3.0,47.6],[-4.4,47.9]]],
+      ['ESPAGNE', [[-1.8,43.4],[-0.7,42.8],[1.7,42.5],[3.2,42.4],[3.2,41.9],[0.9,41.0],[-0.3,39.4],[0.2,38.7],[-0.7,37.6],[-2.1,36.7],[-4.4,36.7],[-5.6,36.0],[-6.4,36.8],[-7.4,37.2],[-7.0,38.0],[-7.3,39.5],[-6.9,41.0],[-6.9,41.9],[-8.2,42.0],[-8.9,42.1],[-9.3,43.0],[-8.0,43.7],[-5.8,43.6],[-3.8,43.4]]],
+      ['PORTUGAL', [[-8.9,42.1],[-8.2,42.0],[-6.9,41.9],[-6.9,41.0],[-7.3,39.5],[-7.0,38.0],[-7.4,37.2],[-8.9,37.0],[-8.8,38.5],[-9.5,38.7],[-8.9,40.0],[-8.7,41.2]]],
+      ['MAROC', [[-5.9,35.8],[-5.3,35.9],[-4.0,35.2],[-2.9,35.3],[-2.2,35.1],[-1.8,34.6],[-1.7,33.2],[-1.2,32.6],[-2.9,32.1],[-3.7,30.9],[-5.0,30.0],[-6.5,29.4],[-8.7,28.7],[-9.9,29.0],[-9.6,30.4],[-9.8,31.5],[-9.2,32.3],[-8.5,33.2],[-7.6,33.6],[-6.8,34.0],[-6.6,34.3],[-6.2,35.2]]],
+      ['ALGÉRIE', [[-1.8,34.6],[-1.2,35.3],[1.0,36.5],[3.0,36.8],[6.5,36.9],[6.5,27.0],[-8.7,27.0],[-8.7,28.7],[-6.5,29.4],[-5.0,30.0],[-3.7,30.9],[-2.9,32.1],[-1.2,32.6],[-1.7,33.2]]],
+      ['', [[7.6,47.6],[8.2,49.0],[9.5,49.0],[9.5,45.8],[7.0,45.9],[6.0,46.2]]], // Suisse, Allemagne (bord)
+      ['', [[6.6,45.1],[7.0,45.9],[9.5,45.8],[9.5,43.9],[7.7,44.0]]], // Italie (bord)
+    ];
+    const pid = s => s.key || s.decor;
     const left = new Set(['gibraltar', 'atlas', 'marrakech']);
-    document.getElementById('routeMap').innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;border:1px solid var(--line);border-radius:12px;background:#0b1230">
-      <text x="${px(2.2)}" y="${py(46.4)}" class="rm-c">FRANCE</text><text x="${px(-3.8)}" y="${py(40.2)}" class="rm-c">ESPAGNE</text><text x="${px(-5.2)}" y="${py(33.3)}" class="rm-c">MAROC</text>
-      <line x1="${px(-7.6)}" y1="${py(35.95)}" x2="${px(-2.2)}" y2="${py(35.95)}" stroke="#2f7fa6" stroke-width="5" stroke-linecap="round" opacity=".55"/>
-      <text x="${px(-1.9)}" y="${py(35.95)+4}" class="rm-s">Détroit</text>
+    const off = {desert:[11, 0], bivouac:[8, 19], atlas:[-6, 21], marrakech:[-11, -10], detroit:[11, 12], gibraltar:[-11, -2]};
+    document.getElementById('routeMap').innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;border:1px solid var(--line);border-radius:12px;background:#0a1734">
+      ${COUNTRIES.map(([n, c]) => `<polygon points="${poly(c)}" fill="${n ? '#1a2550' : '#151f44'}" stroke="#2c3a72" stroke-width="1" stroke-linejoin="round"/>`).join('')}
+      <text x="${px(-9.6)}" y="${py(45.2)}" class="rm-sea">ATLANTIQUE</text><text x="${px(2.4)}" y="${py(38.6)}" class="rm-sea">MÉDITERRANÉE</text>
+      <text x="${px(3.4)}" y="${py(45.7)}" class="rm-c">FRANCE</text><text x="${px(-3.8)}" y="${py(40.2)}" class="rm-c">ESPAGNE</text><text x="${px(-5.2)}" y="${py(33.3)}" class="rm-c">MAROC</text>
+      <text x="${px(-8.1)}" y="${py(39.8)}" class="rm-c rm-c2">PORT.</text><text x="${px(1.6)}" y="${py(31.0)}" class="rm-c rm-c2">ALGÉRIE</text>
       <polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="#e4b350" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>
-      ${STAGES.map((s, i) => `<g data-stage="${s.decor}" class="rm-stop"><circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="5.5"/><text x="${pts[i][0] + (left.has(s.decor) ? -11 : 11) + (s.decor === 'atlas' ? 14 : 0)}" y="${pts[i][1] + ({bivouac:17, atlas:21, marrakech:-7}[s.decor] ?? 4)}" text-anchor="${left.has(s.decor) ? 'end' : 'start'}">${s.name}</text></g>`).join('')}
+      ${STAGES.map((s, i) => { const k = pid(s), o = off[k] || [left.has(s.decor) ? -11 : 11, 4], anchor = o[0] < 0 ? 'end' : 'start';
+        return `<g data-stage="${s.decor}" class="rm-stop"><circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="${k === 'detroit' ? 4 : 5.5}"/><text x="${pts[i][0] + o[0]}" y="${pts[i][1] + o[1]}" text-anchor="${anchor}">${s.name}<tspan class="rm-d" x="${pts[i][0] + o[0]}" dy="12">${s.date}</tspan></text></g>`; }).join('')}
     </svg>`;
     const sl = document.getElementById('stageList');
     STAGES.forEach((s, i) => { const c = document.createElement('div'); c.className = 'card'; c.dataset.stage = s.decor; c.style.marginTop = i ? '' : '10px';
-      c.innerHTML = `<b>${i+1}. ${s.name}</b><span>${s.note}</span>`; sl.appendChild(c); });
+      c.innerHTML = `<b>${i+1}. ${s.name} <em style="font-style:normal;color:var(--gold2);font-weight:600;float:right">${s.date}</em></b><span>${s.note}</span>`; sl.appendChild(c); });
     document.querySelectorAll('[data-stage]').forEach(el => el.onclick = () => setDecor(el.dataset.stage));
   }
   document.getElementById('optRack').onchange = e => rack.visible = e.target.checked;
