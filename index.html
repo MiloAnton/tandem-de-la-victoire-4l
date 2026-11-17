@@ -41,6 +41,8 @@
   .zone.taken .dot{background:var(--fluo)}
   .zone .nm{flex:1;font-size:13.5px;font-weight:600}
   .zone .nm small{display:block;font-weight:400;color:var(--muted);font-size:11.5px;margin-top:1px}
+  .zone.sold .dot{background:var(--gold)}
+  .zone.sold .pr{color:var(--muted)}
   .zone .pr{font-size:13px;color:var(--gold2);font-weight:600;white-space:nowrap}
   .zone{scroll-margin-top:8px}
   .detail{margin:4px 0 12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03)}
@@ -732,7 +734,7 @@ ZONES.forEach(z => {
   const c = document.createElement('canvas');
   c.width = Math.max(64, Math.round(z.w*pxPerM)); c.height = Math.max(32, Math.round(z.h*pxPerM));
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  const mat = new THREE.MeshStandardMaterial({map:tex, transparent:true, roughness:0.35, polygonOffset:true, polygonOffsetFactor:-2, depthWrite:false, side: z.hood ? THREE.DoubleSide : THREE.FrontSide});
+  const mat = new THREE.MeshStandardMaterial({map:tex, transparent:true, roughness:0.55, envMapIntensity:0.45, polygonOffset:true, polygonOffsetFactor:-2, depthWrite:false, side: z.hood ? THREE.DoubleSide : THREE.FrontSide});
   const m = z.hood ? hoodPatch(z.hood[0], z.hood[1], 0, z.w, mat) : plane(z.w, z.h, mat, z.center, z.x, z.y);
   m.renderOrder = 2; m.userData.zone = z;
   Object.assign(z, {canvas:c, tex, mesh:m, content:null, inPack:false});
@@ -743,6 +745,20 @@ ZONES.forEach(z => {
 const trophyImg = new Image();
 trophyImg.onload = () => ZONES.filter(z => z.reserved).forEach(z => { z.content = {img:trophyImg}; drawZone(z); });
 trophyImg.src = 'logo-4l-trophy.png';
+
+// emplacements vendus : bloqués avec le logo du sponsor
+const SOLD = {
+  'capot':   {sponsor:'Leonis', logo:'logo-leonis.png'},
+  'basar-d': {sponsor:'Leonis', logo:'logo-leonis.png'},
+};
+const soldImgs = {};
+Object.entries(SOLD).forEach(([id, s]) => {
+  const z = ZONES.find(z => z.id === id); if (!z) return;
+  z.sold = s; z.tier = 'Sponsor : ' + s.sponsor;
+  const img = soldImgs[s.logo] ||= Object.assign(new Image(), {src: s.logo});
+  const put = () => { z.content = {img}; drawZone(z); };
+  img.complete && img.naturalWidth ? put() : img.addEventListener('load', put);
+});
 
 /* ---------- Ouvrants : portières, capot, porte arrière ----------
    La carrosserie est d'un bloc : chaque ouvrant est une peau articulée qui emporte ses accessoires et ses stickers,
@@ -1309,7 +1325,7 @@ function setLivery(id){
 let liveryMode = false;
 function setContent(id, content){
   const z = ZONES.find(z=>z.id===id);
-  if (z.reserved) return;
+  if (z.reserved || z.sold) return;
   if (z.content && !z.content.livery && liveryMode) return; // ne pas écraser un sponsor
   z.content = content ? {...content, livery: liveryMode} : null;
 }
@@ -1435,12 +1451,16 @@ function renderLists(){
   ZONES.forEach(z => {
     if (z.group !== grp){ grp = z.group; const h = document.createElement('h3'); h.textContent = grp; zoneList.appendChild(h); }
     const d = document.createElement('div'); d.dataset.id = z.id;
-    d.className = 'zone' + (z === selected ? ' sel' : '') + (z.content && !z.content.livery ? ' taken' : '');
-    d.innerHTML = `<span class="dot"></span><span class="nm">${z.name}<small>${Math.round(z.w*100)} × ${Math.round(z.h*100)} cm${z.tier ? ' · ' + z.tier : ''}</small></span><span class="pr">${z.reserved ? 'Réservé' : euros(z.price)}</span>`;
+    d.className = 'zone' + (z === selected ? ' sel' : '') + (z.sold ? ' sold' : '') + (z.content && !z.content.livery ? ' taken' : '');
+    d.innerHTML = `<span class="dot"></span><span class="nm">${z.name}<small>${Math.round(z.w*100)} × ${Math.round(z.h*100)} cm${z.tier ? ' · ' + z.tier : ''}</small></span><span class="pr">${z.reserved ? 'Réservé' : z.sold ? 'Vendu' : euros(z.price)}</span>`;
     d.onclick = () => selectZone(z.id);
     zoneList.appendChild(d);
   });
   { const row = zoneList.querySelector('.zone.sel'); if (row) row.after(detail); }
+  if (selected && selected.sold){
+    detail.innerHTML = `<h2 style="margin-top:0">${selected.name}</h2><p class="lead" style="margin:0">Cet emplacement est déjà pris par ${selected.sold.sponsor}. Merci à eux ! Choisis un autre emplacement pour ta marque.</p>`;
+    renderPack(); return;
+  }
   if (selected && selected.reserved){
     detail.innerHTML = `<h2 style="margin-top:0">${selected.name}</h2><p class="lead" style="margin:0">Emplacement réservé à l'organisation du 4L Trophy : son logo y est obligatoire.</p>`;
     renderPack(); return;
