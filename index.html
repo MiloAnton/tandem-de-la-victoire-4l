@@ -141,7 +141,7 @@
   .cr-spon{margin-top:34px;border:1px solid var(--line);border-radius:20px;padding:26px 24px;background:linear-gradient(160deg,rgba(212,238,42,.10),rgba(212,238,42,.02) 55%)}
   .cr-spon > h2{font:400 32px/1.1 "Alfa Slab One",serif;color:var(--gold2);margin:4px 0 8px}
   .cr-spon > p{color:#e2e5f0;font-size:15px;line-height:1.6;margin:0;max-width:760px}
-  .cr-gets{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px}
+  .cr-gets{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
   .cr-get{border-radius:14px;padding:16px;background:rgba(10,20,66,.55);border:1px solid var(--line)}
   .cr-get .ic{font-size:24px;line-height:1}
   .cr-get h3{margin:10px 0 6px;font-size:15px;color:#fff;text-transform:none;letter-spacing:0;font-weight:700}
@@ -189,6 +189,41 @@
   .so-end{margin-top:30px;text-align:center;border:1px solid var(--line);border-radius:18px;padding:26px 22px;background:linear-gradient(135deg,rgba(212,238,42,.14),rgba(212,238,42,.03))}
   .so-end h2{font:400 30px "Alfa Slab One",serif;color:var(--gold2);margin:0 0 8px}
   .so-end p{color:#e2e5f0;font-size:15px;line-height:1.55;max-width:640px;margin:0 auto}
+  .so-gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
+  .so-g{border-radius:14px;padding:14px 16px;background:rgba(255,255,255,.035);border:1px solid var(--line)}
+  .so-g h3{margin:0 0 2px;font-size:15px;color:#fff;text-transform:none;letter-spacing:0}
+  .so-g .goal{font-size:12.5px;color:var(--gold2);font-weight:700}
+  .so-bar{position:relative;height:14px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid var(--line);margin:12px 0 22px}
+  .so-bar i{position:absolute;left:0;top:0;bottom:0;width:6%;border-radius:999px;background:var(--gold)}
+  .so-bar em{position:absolute;left:50%;top:-5px;bottom:-5px;width:3px;background:#e23b2e;border-radius:2px}
+  .so-bar em::after{content:attr(data-p);position:absolute;top:22px;left:50%;transform:translateX(-50%);white-space:nowrap;font:700 11.5px Archivo,sans-serif;font-style:normal;color:#ff8a7e}
+  .so-g p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.45}
+  .so-legend{font-size:13px;color:#d9dcea;margin:0 0 10px}
+  .so-legend b{color:#ff8a7e}
+  .so-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 10px;padding:0;list-style:none}
+  .so-list li{font-size:13px;font-weight:600;padding:7px 12px;border-radius:999px;background:rgba(212,238,42,.12);border:1px solid rgba(212,238,42,.35);color:#fff}
+  .so-no{font-size:13px;color:#d9dcea;margin:0;line-height:1.55}
+  .so-no b{color:#ff8a7e}
+  .so-three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .so-tip{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .so-tip div{border-radius:14px;padding:13px 16px;border:1px dashed var(--line);background:rgba(10,20,66,.55);font-size:13.5px;line-height:1.5;color:#d9dcea}
+  .so-tip b{color:var(--gold2)}
+  .cr-chou{margin-top:34px;text-align:center}
+  .cr-chou h2{font:400 32px/1.1 "Alfa Slab One",serif;color:var(--gold2);margin:4px 0 14px}
+  .cr-chou img{display:block;width:100%;max-width:900px;height:auto;margin:0 auto;border-radius:22px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+  .cr-chou blockquote{margin:16px auto 0;max-width:720px;font:400 19px/1.35 "Alfa Slab One",serif;color:#fff}
+  .cr-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+  .cr-step{border-radius:14px;padding:16px;background:rgba(10,20,66,.55);border:1px solid var(--line)}
+  .cr-step b{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--gold);color:var(--navy);font:400 15px "Alfa Slab One",serif}
+  .cr-step h3{margin:8px 0 6px;font-size:15px;color:#fff;text-transform:none;letter-spacing:0}
+  .cr-step p{margin:0;font-size:13.5px;line-height:1.5;color:#d9dcea}
+  .cr-dl{display:inline-block;margin-top:18px;font:700 13px Archivo,sans-serif;color:var(--navy);background:var(--gold);padding:6px 12px;border-radius:999px}
+  .cr-budget{margin-top:18px;border-radius:14px;padding:14px 16px;background:rgba(10,20,66,.55);border:1px solid var(--line)}
+  .cr-budget .lbl{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;color:#d9dcea;flex-wrap:wrap}
+  .cr-budget .lbl b{color:var(--gold2)}
+  .cr-budget .bar{height:14px;border-radius:999px;background:rgba(255,255,255,.08);margin-top:10px;overflow:hidden}
+  .cr-budget .bar i{display:block;height:100%;width:47%;background:var(--gold);border-radius:999px}
+  @media (max-width:820px){ .so-gauges,.so-three,.cr-steps,.so-tip{grid-template-columns:1fr} .cr-chou blockquote{font-size:16px} }
   .so-src{font-size:11px !important;color:var(--muted) !important;margin-top:16px !important}
   @media (max-width:820px){ .so-hero h1{font-size:32px} .so-two,.so-partners{grid-template-columns:1fr} .so-stats{grid-template-columns:1fr 1fr} }
   .bm-intro{font-size:13.5px;line-height:1.5;color:#e2e5f0;margin:0 0 12px}
@@ -311,7 +346,8 @@
     <div id="zoneList"></div>
     <div class="detail" id="detail"></div>
     <div class="pack" id="pack"></div>
-    <p class="note">Tarifs indicatifs, ajustables avec l'équipage. Contact : Instagram <a href="https://www.instagram.com/tdlv4ltrophy2k27/" target="_blank" rel="noopener">@tdlv4ltrophy2k27</a></p>
+    <p class="note">Emplacements du plan officiel 4L Trophy 2027, tarifs par emplacement (côtés : prix par côté). Toute la 4L : 7 900 €, le toit en plus en option. Tailles indicatives, packs possibles : parlons-en.</p>
+    <p class="note"><b>Premier arrivé, premier servi</b> : logos à nous envoyer avant le 15 janvier 2027. Pas de politique ni de voyagiste concurrent ; l'alcool reste hors des reportages (loi Évin). Contact : Instagram <a href="https://www.instagram.com/tdlv4ltrophy2k27/" target="_blank" rel="noopener">@tdlv4ltrophy2k27</a> ou <a href="mailto:milo@leonis-formation.fr">milo@leonis-formation.fr</a></p>
   </section>
 
   <section class="tab" id="tab-livree">
@@ -354,14 +390,14 @@
   <div class="bm-body"><div class="bm-map" id="bigMapSvg"></div><div class="bm-list">
     <p class="bm-intro">Du 15 février au 3 mars 2027, notre 4L de 1983 traverse la France, l'Espagne et le Maroc. Pas de GPS : un road book et une boussole. Le classement ne récompense pas la vitesse mais le moins de kilomètres parcourus entre les points de contrôle. Dans le désert, on dort au bivouac et on répare nous-mêmes.</p>
     <div class="bm-stats">
-      <div><b>≈ 6 000</b><span>km aller-retour</span></div>
+      <div><b>6 000 km</b><span>jusqu'à Marrakech, ≈ 9 000 au compteur avec le retour</span></div>
       <div><b>17</b><span>jours sur la route</span></div>
       <div><b>3</b><span>pays et une traversée en ferry</span></div>
       <div><b>0</b><span>GPS : road book et boussole</span></div>
       <div><b>614 km</b><span>d'étape marathon en autonomie (édition 2025)</span></div>
       <div><b>43 ans</b><span>pour notre 4L F4, née en 1983</span></div>
     </div>
-    <p class="bm-src">Le plus grand raid étudiant d'Europe : environ 1 500 équipages chaque année. Chiffres des éditions récentes, à titre indicatif.</p>
+    <p class="bm-src">Le plus grand raid étudiant d'Europe, du 17 au 28 février 2027 pour sa 30e édition : environ 1 100 équipages en 2026. Chiffres des éditions récentes, à titre indicatif.</p>
     <h3>Les étapes</h3>
     <div id="bigMapList"></div>
   </div></div>
@@ -397,6 +433,13 @@
     </section>
     <p class="cr-wink">Oui, le mécano ne maîtrise pas le starter et le pilote sursaute à chaque bruit. On a 6 000 km pour progresser.</p>
 
+    <section class="cr-chou">
+      <p class="so-kicker">Le troisième membre de l'équipage</p>
+      <h2>Coucou « La Chouette » !</h2>
+      <img src="chouette-carte.jpg" alt="Carte d'identité de La Chouette, notre Renault 4 F4 née le 27 décembre 1983 : Capricorne, cochon d'eau, cœur à prendre, plat préféré le SP98 Excelium, rêve des dunes de Merzouga, phobie des stations-service fermées" loading="lazy" width="1400" height="813">
+      <blockquote>« Je cherche un sponsor sérieux pour une relation longue distance : 6 000 km minimum. »</blockquote>
+    </section>
+
     <section class="so-two">
       <div class="so-card">
         <h2>🤝 Pourquoi on part</h2>
@@ -411,21 +454,35 @@
     <section class="cr-spon" id="crewWhy">
       <p class="so-kicker">Pour les entreprises</p>
       <h2>Pourquoi sponsoriser notre 4L ?</h2>
-      <p>Le 4L Trophy, c'est le plus grand raid étudiant d'Europe : environ 1 200 équipages et plus de 2 400 participants qui traversent la France, l'Espagne et le Maroc. Ton logo fait le voyage avec nous, et tu reçois bien plus qu'un autocollant.</p>
+      <p>Le 4L Trophy, c'est le plus grand raid étudiant d'Europe : environ 1 100 équipages en 2026, qui traversent la France, l'Espagne et le Maroc. Un raid suivi par la presse, et un compte Instagram qui décolle. Ton logo fait le voyage avec nous, et tu reçois bien plus qu'un autocollant.</p>
       <div class="so-stats">
-        <div><b>~1 200</b><span>équipages au départ chaque année</span></div>
-        <div><b>2 400+</b><span>participants sur le raid</span></div>
-        <div><b>6 000 km</b><span>de route, de Paris au désert marocain</span></div>
-        <div><b>3 pays</b><span>France, Espagne, Maroc</span></div>
+        <div><b>≈ 1 100</b><span>équipages au départ en 2026</span></div>
+        <div><b>10</b><span>reportages TV et 10 passages radio sur l'édition 2026</span></div>
+        <div><b>405</b><span>articles de presse sur l'édition 2026</span></div>
+        <div><b>10 000+</b><span>vues sur notre Instagram en deux semaines</span></div>
       </div>
+      <p class="cr-compta" style="margin-top:12px">🎯 <b>Tu cherches à…</b> marquer les esprits de tes clients, communiquer différemment, asseoir ta notoriété, fédérer tes salariés autour d'un projet ou valoriser une action solidaire dans ta communication RSE ? On a la 4L qu'il te faut.</p>
       <div class="cr-gets">
         <div class="cr-get"><div class="ic">🚙</div><h3>Ton logo sur la 4L</h3><p>À l'emplacement de ton choix, visible sur toute la route, des villages étapes jusqu'aux pistes du désert.</p></div>
         <div class="cr-get"><div class="ic">📸</div><h3>Ta marque dans le désert</h3><p>Des photos de ton logo sur la 4L dans les dunes et sur les pistes, à réutiliser pour ta propre communication.</p></div>
         <div class="cr-get"><div class="ic">📱</div><h3>Des publications dédiées</h3><p>Une présentation de ton entreprise sur notre Instagram, et des mentions pendant toute l'aventure.</p></div>
         <div class="cr-get"><div class="ic">🌐</div><h3>Ta place sur ce site</h3><p>Ton logo visible sur la 4L en 3D et une mention de ton entreprise sur notre site.</p></div>
+        <div class="cr-get"><div class="ic">🎙️</div><h3>Dans nos interviews</h3><p>On parlera de toi auprès des médias qui nous suivront, et partout où on passe.</p></div>
+        <div class="cr-get"><div class="ic">🏢</div><h3>Chez toi, en vrai</h3><p>On vient présenter le projet à tes équipes, ou on expose la 4L devant tes locaux, à convenir.</p></div>
       </div>
-      <p class="cr-compta">🧾 <b>Côté compta</b> : ton sponsoring est une dépense de communication, déductible de ton résultat comme n'importe quelle pub. Facture fournie.</p>
-      <p class="cr-where">Et surtout, ton nom est associé à une <b>aventure solidaire</b> : du matériel scolaire et sportif pour les enfants du Sud marocain, et deux jeunes de 26 ans qui vont au bout de leur défi. C'est une image qui parle à tes clients comme à tes équipes.</p>
+      <p class="cr-compta">🧾 <b>Côté compta</b> : le sponsoring est une dépense de communication, déductible de ton résultat en charge d'exploitation, comme une publicité. Facture fournie par l'association. Pas de reçu fiscal : ce n'est pas du mécénat.</p>
+      <div class="cr-steps">
+        <div class="cr-step"><b>1</b><h3>On en parle</h3><p>Tu choisis ton emplacement ou un pack, on cale tout ensemble.</p></div>
+        <div class="cr-step"><b>2</b><h3>Tu reçois la facture</h3><p>Une facture de l'asso, à passer en dépense de com.</p></div>
+        <div class="cr-step"><b>3</b><h3>Tu nous envoies ton logo</h3><p>En vectoriel (SVG, PDF ou AI), le temps de tout imprimer.</p></div>
+      </div>
+      <span class="cr-dl">Date limite pour les logos : 15 janvier 2027 · premier arrivé, premier servi</span>
+      <div class="cr-budget">
+        <div class="lbl"><span>Budget prévisionnel : <b>17 090 €</b> (inscription, préparation de la 4L, carburant, assurance, équipement, matériel solidaire)</span><span>Déjà réunis : <b>≈ 8 000 €</b></span></div>
+        <div class="bar"><i></i></div>
+        <div class="lbl" style="margin-top:8px"><span>Il nous reste ≈ 9 000 € à trouver : c'est là que tu entres en jeu !</span></div>
+      </div>
+      <p class="cr-where">Et surtout, ton nom est associé à une <b>aventure solidaire</b> : du matériel scolaire et sportif pour les enfants du Sud marocain, et deux jeunes de 26 ans qui vont au bout de leur défi. Tu préfères donner du matériel ? Deviens <b>partenaire solidaire</b>, c'est expliqué dans le volet solidaire. C'est une image qui parle à tes clients comme à tes équipes.</p>
       <div class="so-cta">
         <button class="so-btn so-main" id="crewWhyPick">Choisir mon emplacement</button>
         <a class="so-btn so-ghost" href="mailto:milo@leonis-formation.fr?subject=Sponsoring%20de%20la%204L%20du%20Tandem%20de%20la%20Victoire">Nous écrire</a>
@@ -476,6 +533,33 @@
       <div><b>9 000 €</b><span>objectif de l'opération Village Propre en 2027</span></div>
     </section>
 
+    <h2 class="so-h">Notre coffre solidaire</h2>
+    <p class="so-legend"><b>▲ Palier 1</b> : le minimum conseillé par l'organisation. <b style="color:var(--gold2)">Objectif</b> : au moins le double, avec ton aide !</p>
+    <section class="so-gauges">
+      <div class="so-g"><h3>Cartables scolaires garnis</h3><span class="goal">Objectif : 4 cartables</span><div class="so-bar"><i></i><em data-p="▲ 2 cartables"></em></div><p>Pour Enfants du désert, remis au bivouac de Merzouga.</p></div>
+      <div class="so-g"><h3>Sacs de sport remplis</h3><span class="goal">Objectif : 4 sacs</span><div class="so-bar"><i></i><em data-p="▲ 2 sacs"></em></div><p>Fermés et marqués « 435 ».</p></div>
+      <div class="so-g"><h3>Denrées, hygiène et produits bébé</h3><span class="goal">Objectif : 20 kg</span><div class="so-bar"><i></i><em data-p="▲ 10 kg"></em></div><p>Pour la Croix-Rouge, au village départ.</p></div>
+    </section>
+    <div class="so-card" style="margin-top:12px">
+      <h2>🛒 La liste de courses</h2>
+      <p>La liste officielle d'Enfants du désert et de la Croix-Rouge. Ton entreprise peut prendre une ligne entière en charge !</p>
+      <ul class="so-list"><li>Trousses garnies</li><li>Cahiers et ardoises</li><li>Calculatrices et règles</li><li>Cartables et sacs de sport</li><li>Ballons, chasubles et baskets</li><li>Conserves, riz, pâtes, huiles, biscuits</li><li>Produits d'hygiène et pour bébé</li></ul>
+      <p class="so-no"><b>Refusés :</b> manuels et livres, classeurs, pochettes plastifiées, feuilles volantes, maillots de bain, produits frais, verre et électronique.</p>
+      <p class="so-no" style="margin-top:6px;color:var(--muted)">Consignes 2027 : Enfants du désert, Croix-Rouge française et 4L Trophy. Aucune distribution directe sur les pistes.</p>
+    </div>
+
+    <h2 class="so-h">Ton entreprise, partenaire solidaire</h2>
+    <section class="so-three">
+      <article class="so-p" style="--c:#d4ee2a"><h3>💛 Partenaire solidaire</h3><p>Tu offres du matériel de la liste de courses, ou un cartable ou un sac de sport complet. En échange, ton nom voyage sur la 4L avec un petit cœur, dans notre coin des partenaires solidaires, et on te cite dans nos publications.</p></article>
+      <article class="so-p" style="--c:#e08a3a"><h3>📦 La collecte chez toi</h3><p>On installe un carton de collecte dans tes locaux pendant un mois. On vient le récupérer, on présente le projet à tes équipes et on fait une photo de groupe avec La Chouette. Un vrai moment de cohésion !</p></article>
+      <article class="so-p" style="--c:#2f6fb4"><h3>📸 Ce que ton don est devenu</h3><p>Photos et vidéo de la remise de nos cartables à Enfants du désert, au bivouac de Merzouga, puis un petit compte rendu envoyé à chaque partenaire après le raid.</p></article>
+    </section>
+    <div class="so-tip">
+      <div><b>Pour ta démarche RSE</b> : une action solidaire concrète, des associations reconnues et des photos pour le prouver. De quoi nourrir ton rapport RSE, ta newsletter ou ton LinkedIn.</div>
+      <div><b>Un reçu fiscal ?</b> Pour un don financier défiscalisé, verse-le directement à Enfants du désert ou à la Croix-Rouge française : ce sont elles qui délivrent le reçu fiscal. Notre association ne peut pas en émettre.</div>
+    </div>
+
+
     <h2 class="so-h">Les associations partenaires du raid</h2>
     <section class="so-partners">
       <article class="so-p" style="--c:#e08a3a">
@@ -510,13 +594,13 @@
 
     <section class="so-end">
       <h2>On compte sur vous</h2>
-      <p>Un don à notre association finance à la fois notre participation et les dons que nous emportons. Vous avez des fournitures scolaires ou du matériel de sport à donner ? Écrivez-nous, on les embarque.</p>
+      <p>Un don à notre association finance à la fois notre participation et les dons que nous emportons. Dès 20 €, ton nom ou ta signature voyage sur la 4L. Tu as des fournitures scolaires ou du matériel de sport de la liste à donner ? Écris-nous, on les embarque.</p>
       <div class="so-cta">
         <a class="so-btn so-main" id="soDonate2" target="_blank" rel="noopener">Faire un don</a>
         <a class="so-btn so-ghost" href="mailto:milo@leonis-formation.fr?subject=Soutien%20au%20Tandem%20de%20la%20Victoire">milo@leonis-formation.fr</a>
         <a class="so-btn so-ghost" href="https://www.instagram.com/tdlv4ltrophy2k27/" target="_blank" rel="noopener">@tdlv4ltrophy2k27</a>
       </div>
-      <p class="so-src">Informations sur les associations : présentation officielle du 4L Trophy 2027. Le Tandem de la Victoire est une association loi 1901.</p>
+      <p class="so-src">Informations sur les associations et consignes de collecte : organisation du 4L Trophy 2027. Le Tandem de la Victoire, association loi 1901 · RNA W921011961 · SIRET 130 167 828 00016.</p>
     </section>
   </div>
 </div>
@@ -1107,7 +1191,7 @@ const ZONES = [];
 {
   const Z = (o) => ZONES.push(o);
   // avant
-  Z({id:'capot', name:'Capot', group:'Avant', w:1.00, h:0.77, price:300, tier:'Vu de face, sur toutes les photos', hood:[0.77, 1.54], view:'front34'});
+  Z({id:'capot', name:'Capot', group:'Avant', w:1.00, h:0.77, price:1500, tier:'Vu de face, sur toutes les photos', hood:[0.77, 1.54], view:'front34'});
   {
     const wb = new THREE.Vector2(WS_BASE, BELT), wt = new THREE.Vector2(WS_TOP[0], WS_TOP[1]);
     const wd = wt.clone().sub(wb).normalize(), n = new THREE.Vector2(wd.y, -wd.x);
@@ -1115,39 +1199,33 @@ const ZONES = [];
     Z({id:'bandeau', name:'Bandeau de pare-brise', group:'Avant', w:1.08, h:0.10, price:0, tier:'Réservé à l\'organisation', reserved:'bandeau',
       center:[c.x, c.y, 0], x:[0,0,-1], y:[wd.x, wd.y, 0], view:'front34'});
   }
-  // côtés
+  // côtés : plan officiel des emplacements 4L Trophy 2027 (prix par côté)
+  // [id, nom, largeur, hauteur, prix, x, y, z, précision, réservé, découpe du passage de roue]
   const sideSpecs = [
-    ['flanc-av', 'Flanc haut avant', 0.40, 0.34, 400, -0.97, 1.30, BOX_SIDE, 'Emplacement phare'],
-    ['flanc-ar', 'Flanc haut arrière', 0.40, 0.34, 400, -1.39, 1.30, BOX_SIDE, 'Emplacement phare'],
-    ['orga', 'Plaque équipage', 0.34, 0.34, 0, 0.42, 0.74, CAB_SIDE, 'Réservé à l\'organisation', 'plaque'],
-    ['porte', 'Portière', 0.46, 0.32, 400, -0.03, 0.74, CAB_SIDE, ''],
-    ['vitre', 'Petite vitre arrière', 0.25, 0.34, 200, -0.55, 1.30, BOX_SIDE+0.002, 'Sticker de vitre'],
-    ['portb', 'Bandeau de portière', 0.50, 0.07, 150, 0.25, 1.012, CAB_SIDE, 'À côté de la poignée'],
-    ['toitc', 'Côté du toit surélevé', 0.96, 0.13, 250, -1.12, 1.595, 0.73, ''],
-    ['bas', 'Bas de caisse', 0.30, 0.34, 200, -0.60, 0.74, BOX_SIDE, ''],
-    ['roue', 'Dessus de roue arrière', 0.62, 0.15, 200, -1.15, 0.855, BOX_SIDE, ''],
-    ['aile1', 'Aile avant, côté portière', 0.24, 0.15, 150, 0.97, 0.85, CAB_SIDE, ''],
-    ['aile2', 'Aile avant, côté phare', 0.24, 0.15, 150, 1.35, 0.85, CAB_SIDE, ''],
+    ['aileh', 'Haut de l\'aile avant', 0.62, 0.11, 200, 1.18, 0.93, CAB_SIDE, ''],
+    ['aileb', 'Bas de l\'aile avant', 0.74, 0.36, 300, 1.01, 0.68, CAB_SIDE, 'Autour du passage de roue', undefined, AX_F],
+    ['porte', 'Portière avant', 0.82, 0.46, 0, 0.17, 0.76, CAB_SIDE, 'Réservé à l\'organisation', 'plaque'],
+    ['bande', 'Bande latérale', 1.42, 0.06, 0, -1.00, 1.04, BOX_SIDE, 'Réservé à l\'organisation', 'bande'],
+    ['vitre', 'Vitre latérale arrière', 0.29, 0.38, 300, -0.55, 1.30, BOX_SIDE+0.002, 'Sticker de vitre'],
+    ['panneau', 'Panneau autour de la vitre', 0.84, 0.38, 500, -1.18, 1.30, BOX_SIDE, 'Emplacement phare'],
+    ['bascc', 'Bas de caisse central', 0.71, 0.44, 450, -0.645, 0.75, BOX_SIDE, '', undefined, AX_R],
+    ['bascar', 'Bas de caisse arrière', 0.71, 0.44, 400, -1.355, 0.75, BOX_SIDE, 'Au-dessus de la roue', undefined, AX_R],
+    ['toitav', 'Côté du toit surélevé, avant', 0.48, 0.13, 200, -0.90, 1.595, 0.73, ''],
+    ['toitar', 'Côté du toit surélevé, arrière', 0.48, 0.13, 200, -1.40, 1.595, 0.73, ''],
   ];
-  [[1,'d','droit','side'],[-1,'g','gauche','left']].forEach(([s,suf,lab,view]) => sideSpecs.forEach(([id,name,w,h,price,x,y,zs,tier,reserved]) =>
-    Z({id:id+'-'+suf, name, group:'Côté '+lab, w, h, price, tier, reserved, surf: id === 'toitc' ? {along:'x', a0:x - w/2, a1:x + w/2, c:[s*0.30, 1.45], out:s, read:s}
-      : id.startsWith('aile') ? {along:'x', a0:x - w/2, a1:x + w/2, c:[s*0.35, 0.70], out:s, read:s, target:cab, ymin:y - h/2} : undefined, center:[x, y, s*(zs+0.006)], x:[s,0,0], y:[0,1,0], view})));
+  [[1,'d','droit','side'],[-1,'g','gauche','left']].forEach(([s,suf,lab,view]) => sideSpecs.forEach(([id,name,w,h,price,x,y,zs,tier,reserved,arch]) =>
+    Z({id:id+'-'+suf, name, group:'Côté '+lab, w, h, price, tier, reserved, cut: arch === undefined ? undefined : {ax:arch, r:ARCH_R+0.02},
+      surf: id.startsWith('toit') ? {along:'x', a0:x - w/2, a1:x + w/2, c:[s*0.30, 1.45], out:s, read:s}
+      : id === 'aileh' ? {along:'x', a0:x - w/2, a1:x + w/2, c:[s*0.35, 0.70], out:s, read:s, target:cab, ymin:y - h/2} : undefined, center:[x, y, s*(zs+0.006)], x:[s,0,0], y:[0,1,0], view})));
   // arrière
   const R = BOX_REAR-0.007, RX = [0,0,1], RY = [0,1,0];
-  Z({id:'lunette', name:'Lunette arrière', group:'Arrière', w:0.86, h:0.28, price:600, tier:'Vu par tous ceux qui suivent', center:[R, 1.36, 0], x:RX, y:RY, view:'rear34'});
-  Z({id:'arriere', name:'Bandeau de porte arrière', group:'Arrière', w:1.10, h:0.19, price:400, tier:'', center:[R, 1.06, 0], x:RX, y:RY, view:'rear34'});
-  [[1,'droit','d'],[-1,'gauche','g']].forEach(([s,lab,suf]) => {
-    Z({id:'hautar-'+suf, name:'Haut de toit arrière '+lab, group:'Arrière', w:0.48, h:0.12, price:300, tier:'', surf:{along:'z', a0:s*0.27 - 0.24, a1:s*0.27 + 0.24, c:[-1.30, 1.45], out:-1, read:1}, view:'rear34'});
-    Z({id:'basar-'+suf, name:'Bas de porte arrière '+lab, group:'Arrière', w:0.30, h:0.24, price:150, tier: s < 0 ? 'Réservé à l\'organisation' : '', reserved: s < 0 && 'plaque', center:[R, 0.78, s*0.42], x:RX, y:RY, view:'rear34'});
-  });
-  // pare-chocs : petits stickers enroulés sur le tube
-  const SPAN = 2.4; // angle couvert autour du tube, en radians
-  [[1, 'avant', 'Avant', FRONT+0.085, 0.42, 0.034, 0.32, 150, 'front34'], [-1, 'arrière', 'Arrière', BOX_REAR-0.06, 0.43, 0.028, 0.38, 100, 'rear34']].forEach(([dir, lab, grp, cx, cy, r, zc, price, view]) =>
-    [[1,'droit','d'],[-1,'gauche','g']].forEach(([s, side, suf]) => Z({id:`pc${dir > 0 ? 'av' : 'ar'}-${suf}`, name:`Pare-chocs ${lab} ${side}`, group:grp, w:0.30, h:+(r*SPAN).toFixed(3), price, tier:'',
-      tube:{cx, cy, r:r+0.0025, z0:s*zc - 0.15, z1:s*zc + 0.15, dir}, view})));
+  Z({id:'hauthayon', name:'Haut du hayon', group:'Arrière', w:1.00, h:0.12, price:400, tier:'Sur l\'arrondi du toit', surf:{along:'z', a0:-0.50, a1:0.50, c:[-1.30, 1.45], out:-1, read:1}, view:'rear34'});
+  Z({id:'lunette', name:'Lunette arrière', group:'Arrière', w:0.86, h:0.28, price:500, tier:'Vue par tous ceux qui suivent', center:[R, 1.36, 0], x:RX, y:RY, view:'rear34'});
+  Z({id:'bashayon', name:'Bas du hayon, côté droit', group:'Arrière', w:0.75, h:0.18, price:400, tier:'', center:[R, 1.07, 0.165], x:RX, y:RY, view:'rear34'});
+  Z({id:'carre', name:'Carré de l\'organisation', group:'Arrière', w:0.15, h:0.15, price:0, tier:'Réservé à l\'organisation', reserved:'trophy', center:[R, 1.07, -0.42], x:RX, y:RY, view:'rear34'});
   // toit : quatre quarts
   [[-0.93,'avant'],[-1.41,'arrière']].forEach(([x,fa]) => [[1,'droit'],[-1,'gauche']].forEach(([s,lab]) =>
-    Z({id:`toit-${fa[0]}${lab[0]}`, name:`Toit ${fa} ${lab}`, group:'Toit (vue drone)', w:0.46, h:0.44, price:200, tier:'', center:[x, BOX_TOP+0.02, s*0.25], x:[0,0,1], y:[1,0,0], view:'top'})));
+    Z({id:`toit-${fa[0]}${lab[0]}`, name:`Toit ${fa} ${lab}`, group:'Toit (vue drone)', w:0.46, h:0.44, price:200, tier:'En option, hors total', option:true, center:[x, BOX_TOP+0.02, s*0.25], x:[0,0,1], y:[1,0,0], view:'top'})));
 }
 
 // sticker enroulé sur un tube de pare-chocs : texte dans l'axe du tube, lisible face au pare-chocs
@@ -1200,6 +1278,23 @@ function surfacePatch({along, a0, a1, c, out, read, target = roofCap, ymin = 1.5
   g.setIndex(idx); g.computeVertexNormals();
   const m = new THREE.Mesh(g, mat); car.add(m); return m;
 }
+// sticker de flanc découpé autour du passage de roue (le bas du rectangle suit l'arche)
+function cutPlane(z, mat){
+  const {w, h} = z, [cx, cy] = z.center, s = z.x[0], ua = s*(z.cut.ax - cx), va = WHEEL_Y - cy, r = z.cut.r;
+  const pts = [], n = 48;
+  for (let i=0;i<=n;i++){
+    const u = -w/2 + w*i/n, du = u - ua;
+    let v = -h/2; if (Math.abs(du) < r) v = Math.max(v, va + Math.sqrt(r*r - du*du));
+    pts.push(new THREE.Vector2(u, Math.min(v, h/2 - 0.02)));
+  }
+  pts.push(new THREE.Vector2(w/2, h/2), new THREE.Vector2(-w/2, h/2));
+  const g = new THREE.ShapeGeometry(new THREE.Shape(pts));
+  const P = g.attributes.position, uv = g.attributes.uv;
+  for (let i=0;i<P.count;i++) uv.setXY(i, (P.getX(i) + w/2)/w, (P.getY(i) + h/2)/h);
+  uv.needsUpdate = true;
+  const m = orient(new THREE.Mesh(g, mat), z.center, z.x, z.y);
+  car.add(m); return m;
+}
 const zoneMeshes = [];
 ZONES.forEach(z => {
   const pxPerM = 600;
@@ -1207,7 +1302,7 @@ ZONES.forEach(z => {
   c.width = Math.max(64, Math.round(z.w*pxPerM)); c.height = Math.max(32, Math.round(z.h*pxPerM));
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   const mat = new THREE.MeshStandardMaterial({map:tex, transparent:true, roughness:0.55, envMapIntensity:0.45, polygonOffset:true, polygonOffsetFactor:-2, depthWrite:false, side: z.hood || z.tube || z.surf ? THREE.DoubleSide : THREE.FrontSide});
-  const m = z.hood ? hoodPatch(z.hood[0], z.hood[1], 0, z.w, mat) : z.tube ? tubePatch(z.tube, mat) : z.surf ? surfacePatch(z.surf, z.h, mat) : plane(z.w, z.h, mat, z.center, z.x, z.y);
+  const m = z.hood ? hoodPatch(z.hood[0], z.hood[1], 0, z.w, mat) : z.tube ? tubePatch(z.tube, mat) : z.surf ? surfacePatch(z.surf, z.h, mat) : z.cut ? cutPlane(z, mat) : plane(z.w, z.h, mat, z.center, z.x, z.y);
   m.renderOrder = 2; m.userData.zone = z;
   Object.assign(z, {canvas:c, tex, mesh:m, content:null, inPack:false});
   zoneMeshes.push(m);
@@ -1232,10 +1327,17 @@ trophyImg.src = 'logo-4l-trophy.png'; plaqueImg.src = 'plaque-equipage-435.png';
   document.fonts.load('800 40px Archivo').then(() => drawZone(z)).catch(()=>{});
 }
 
+// bande latérale de l'organisation
+ZONES.filter(z => z.reserved === 'bande').forEach(z => { z.content = {draw:(x, W, H) => {
+  x.fillStyle = '#e23b2e'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#ffffff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = `800 ${H*0.62}px Archivo, Arial`;
+  x.fillText('PARTENAIRES 4L TROPHY', W/2, H*0.55);
+}}; setTimeout(() => drawZone(z)); });
+
 // emplacements vendus : bloqués avec le logo du sponsor
 const SOLD = {
   'capot':   {sponsor:'Leonis', logo:'logo-leonis-formation.png'},
-  'basar-d': {sponsor:'Leonis', logo:'logo-leonis.png'},
+  'bashayon': {sponsor:'Leonis', logo:'logo-leonis.png'},
 };
 const soldImgs = {};
 Object.entries(SOLD).forEach(([id, s]) => {
@@ -1385,11 +1487,13 @@ function drawZone(z){
     x.setLineDash([]);
     if (!ct && H > 80){
       x.fillStyle = 'rgba(10,16,40,.85)'; x.textAlign = 'center'; x.textBaseline = 'middle';
-      const fs = Math.min(H*0.16, W*0.08);
+      let fs = Math.min(H*0.16, W*0.08);
       x.font = `700 ${fs}px Archivo, sans-serif`;
-      x.fillText(z.name.toUpperCase(), W/2, H/2 - fs*0.7);
+      const tw = x.measureText(z.name.toUpperCase()).width; if (tw > W*0.9){ fs *= W*0.9/tw; x.font = `700 ${fs}px Archivo, sans-serif`; }
+      const ly = z.cut ? H*0.36 : H/2; // sur les flancs découpés, l'étiquette reste au-dessus de la roue
+      x.fillText(z.name.toUpperCase(), W/2, ly - fs*0.7);
       x.font = `600 ${fs*0.85}px Archivo, sans-serif`;
-      x.fillText(`${Math.round(z.w*100)} × ${Math.round(z.h*100)} cm · ${z.price} €`, W/2, H/2 + fs*0.7);
+      x.fillText(`${Math.round(z.w*100)} × ${Math.round(z.h*100)} cm · ${z.price} €`, W/2, ly + fs*0.7);
     }
   }
   z.tex.needsUpdate = true;
@@ -2520,9 +2624,9 @@ const PLACES = {
   ville: {name:'Départ de Paris', fact:"En 1961, la R4 est présentée au Salon de Paris : 200 R4 sont prêtées aux passants, pour environ 60 000 essais !"},
   biarritz: {name:'Biarritz, le village départ', fact:"Le 4L Trophy a été créé en 1997 : 2027 sera l'édition des 30 ans."},
   gibraltar: {name:'Algésiras et le détroit', fact:"Au plus étroit, le détroit de Gibraltar ne mesure que 14 km.", credit:'Photo : 4L Trophy / Désertours / FlashSport'},
-  desert: {name:'Les dunes de Merzouga', fact:"Les dunes de l'erg Chebbi peuvent atteindre 150 m de haut."},
-  bivouac: {name:'Le bivouac', fact:"Pas de GPS sur le raid : on navigue au road book et à la boussole."},
-  atlas: {name:'Col du Tichka', fact:"À 2 260 m, c'est le plus haut col routier du Maroc."},
+  desert: {name:'Les dunes de Merzouga', fact:"Les dunes de l'erg Chebbi peuvent atteindre 150 m de haut.", credit:'Photo : 4L Trophy 2026 / Flash Sport'},
+  bivouac: {name:'Le bivouac', fact:"Pas de GPS sur le raid : on navigue au road book et à la boussole.", credit:'Photo : 4L Trophy 2026 / Flash Sport'},
+  atlas: {name:'Col du Tichka', fact:"À 2 260 m, c'est le plus haut col routier du Maroc.", credit:'Photo : 4L Trophy 2026 / Flash Sport'},
   marrakech: {name:'Arrivée à Marrakech', fact:"La place Jemaa el-Fna est au patrimoine immatériel de l'UNESCO depuis 2001."},
   autoroute: {name:'Retour à Paris', fact:"8 135 424 Renault 4 ont été produites entre 1961 et 1992. La nôtre date de 1983."}
 };
@@ -2590,12 +2694,12 @@ const both = (id, content) => { setContent(id+'-d', content); setContent(id+'-g'
 const LIVERIES = [
   {id:'actuelle', name:'Telle qu\'elle est', desc:'Bleu roi, liserés et jantes jaune fluo', paint:0x1f36b4, accent:0xc9ef1f, apply:()=>{}},
   {id:'equipage', name:'Équipage 435', desc:'Le badge et le nom de l\'équipage sur les flancs', paint:0x1f36b4, accent:0xc9ef1f, apply:()=>{
-    both('flanc-ar', {img:badgeImg}); both('flanc-av', {text:'LE TANDEM DE LA VICTOIRE', color:'#ffffff', bg:'rgba(18,29,69,.92)'});
+    both('panneau', {img:badgeImg}); both('bascar', {text:'LE TANDEM DE LA VICTOIRE', color:'#ffffff', bg:'rgba(18,29,69,.92)'});
   }},
   {id:'rallye', name:'Bandes rallye', desc:'Deux bandes fluo du capot à la porte arrière', paint:0x1f36b4, accent:0xc9ef1f, stripes:true, apply:()=>{
   }},
   {id:'sable', name:'Sable et or', desc:'Une teinte désert, accents bleu nuit, rappel du logo', paint:0xd8b779, accent:0x121d45, apply:()=>{
-    both('flanc-ar', {img:badgeImg});
+    both('panneau', {img:badgeImg});
   }},
 ];
 let currentLivery = 'actuelle';
@@ -2757,7 +2861,7 @@ function renderLists(){
     renderPack(); return;
   }
   if (selected && selected.reserved){
-    detail.innerHTML = `<h2 style="margin-top:0">${selected.name}</h2><p class="lead" style="margin:0">Emplacement réservé à l'organisation du 4L Trophy : elle y colle elle-même ses stickers (numéro d'équipage, partenaires, bandeau) au village départ.</p>`;
+    detail.innerHTML = `<h2 style="margin-top:0">${selected.name}</h2><p class="lead" style="margin:0">Emplacement réservé à l'organisation du 4L Trophy : portières avant, bande latérale, bandeau de pare-brise et carré de 15 × 15 cm sur le hayon. Elle y colle elle-même ses stickers (numéro d'équipage, partenaires) au village départ.</p>`;
     renderPack(); return;
   }
   if (!selected){
